@@ -26,11 +26,23 @@ const allowedOrigins = [
   'http://localhost:4173'
 ].filter(Boolean);
 
+// On Vercel, add the auto-generated deployment URLs
+if (process.env.VERCEL_URL) {
+  allowedOrigins.push(`https://${process.env.VERCEL_URL}`);
+}
+if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+  allowedOrigins.push(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+}
+
 app.use(cors({
   origin: function (origin, callback) {
     // allow requests with no origin (mobile apps, curl, etc)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    // Also allow any *.vercel.app subdomain for preview deployments
+    if (origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
