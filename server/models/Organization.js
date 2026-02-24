@@ -35,7 +35,7 @@ const organizationSchema = new mongoose.Schema({
 });
 
 // Recalculate verificationLevel on save
-organizationSchema.pre('save', function (next) {
+organizationSchema.pre('save', function () {
   if (this.manualApproved) {
     this.verificationLevel = 3;
   } else if (this.documentsUploaded) {
@@ -45,7 +45,6 @@ organizationSchema.pre('save', function (next) {
   } else {
     this.verificationLevel = 0;
   }
-  next();
 });
 
 module.exports = mongoose.model('Organization', organizationSchema);
