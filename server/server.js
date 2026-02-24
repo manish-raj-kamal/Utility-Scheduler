@@ -54,14 +54,16 @@ app.use('/api/verification', verificationRoutes);
 // Serve uploaded documents
 app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 
-// Serve React frontend in production
-const clientBuildPath = path.join(__dirname, '..', 'client', 'dist');
-app.use(express.static(clientBuildPath));
+// Only serve React frontend when NOT running as serverless function
+if (!process.env.VERCEL) {
+  const clientBuildPath = path.join(__dirname, '..', 'client', 'dist');
+  app.use(express.static(clientBuildPath));
 
-// Any non-API route serves the React app
-app.get(/^(?!\/api).*/, (req, res) => {
-  res.sendFile(path.join(clientBuildPath, 'index.html'));
-});
+  // Any non-API route serves the React app
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
 
 // Error handler
 app.use((err, req, res, next) => {
@@ -69,15 +71,27 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Server Error', error: err.message });
 });
 
-const PORT = process.env.PORT || 5000;
+// Cached mongoose connection for serverless
+let isConnected = false;
 
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('MongoDB Connected');
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch((err) => {
-    console.error('MongoDB Connection Error:', err.message);
-    process.exit(1);
-  });
+async function connectDB() {
+  if (isConnected) return;
+  await mongoose.connect(process.env.MONGODB_URI);
+  isConnected = true;
+  console.log('MongoDB Connected');
+}
+
+// Start server only when not on Vercel (local dev / traditional hosting)
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
+  connectDB()
+    .then(() => {
+      app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    })
+    .catch((err) => {
+      console.error('MongoDB Connection Error:', err.message);
+      process.exit(1);
+    });
+}
+
+module.exports = { app, connectDB };
