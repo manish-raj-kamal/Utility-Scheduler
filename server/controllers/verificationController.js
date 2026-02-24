@@ -1,35 +1,7 @@
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const Organization = require('../models/Organization');
 const AuditLog = require('../models/AuditLog');
-
-// ── Email transporter (uses env vars or falls back to Ethereal for dev) ──
-let transporter;
-const getTransporter = async () => {
-  if (transporter) return transporter;
-
-  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-    });
-  } else {
-    // Dev fallback — logs OTP to console instead of sending
-    transporter = {
-      sendMail: async (opts) => {
-        console.log('──── DEV EMAIL ────');
-        console.log(`To: ${opts.to}`);
-        console.log(`Subject: ${opts.subject}`);
-        console.log(opts.text || opts.html);
-        console.log('───────────────────');
-        return { messageId: 'dev' };
-      }
-    };
-  }
-  return transporter;
-};
+const { sendEmail } = require('../utils/mailer');
 
 // ── Generate 6-digit OTP ──
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
@@ -56,9 +28,7 @@ exports.sendEmailOtp = async (req, res) => {
     if (!org.contactEmail) org.contactEmail = email;
     await org.save();
 
-    const mailer = await getTransporter();
-    await mailer.sendMail({
-      from: process.env.SMTP_FROM || '"UtilityScheduler" <noreply@utilitysched.dev>',
+    await sendEmail({
       to: email,
       subject: 'Your Organization Verification OTP',
       text: `Your OTP is: ${otp}\nIt expires in 10 minutes.`,
