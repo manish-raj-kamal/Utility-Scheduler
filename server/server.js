@@ -72,12 +72,11 @@ app.use((err, req, res, next) => {
 });
 
 // Cached mongoose connection for serverless
-let isConnected = false;
-
 async function connectDB() {
-  if (isConnected) return;
-  await mongoose.connect(process.env.MONGODB_URI);
-  isConnected = true;
+  if (mongoose.connection.readyState >= 1) return;
+  await mongoose.connect(process.env.MONGODB_URI, {
+    bufferCommands: false,
+  });
   console.log('MongoDB Connected');
 }
 
