@@ -1,0 +1,14 @@
+{
+  "name": "utility-scheduler",
+  "version": "1.0.0",
+  "description": "Shared Utility Scheduler - MERN App",
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "build:client": "cd client && npm run build",
+    "start": "cd server && node server.js",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "seed": "cd server && npm run seed",
+    "render:build": "npm run install:all && npm run build:client"
+  }
+}
