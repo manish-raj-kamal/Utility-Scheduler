@@ -12,16 +12,23 @@ const {
 } = require('../controllers/verificationController');
 
 // ── Multer config for document uploads ──
-const uploadsDir = path.join(__dirname, '..', 'uploads', 'org-docs');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+let storage;
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    cb(null, `${unique}${path.extname(file.originalname)}`);
-  }
-});
+if (process.env.VERCEL) {
+  // Vercel has a read-only filesystem — use memory storage
+  storage = multer.memoryStorage();
+} else {
+  const uploadsDir = path.join(__dirname, '..', 'uploads', 'org-docs');
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  storage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+      cb(null, `${unique}${path.extname(file.originalname)}`);
+    }
+  });
+}
 
 const upload = multer({
   storage,
