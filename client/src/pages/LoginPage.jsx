@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import FloatingIcons from '../components/FloatingIcons';
 import GoogleLoginButton from '../components/GoogleLoginButton';
+import W8Icon from '../components/W8Icon';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -63,13 +64,13 @@ export default function LoginPage() {
       {/* Left branding panel */}
       <div className="auth-side">
         <div className="auth-side-content">
-          <Link to="/" className="auth-brand">⚡ UtilityScheduler</Link>
+          <Link to="/" className="auth-brand"><W8Icon name="utilities" size={22} alt="" style={{marginRight:6}} />UtilityScheduler</Link>
           <h1>Welcome back</h1>
           <p>Sign in to manage your bookings, view schedules, and access your community's shared utilities.</p>
           <div className="auth-side-features">
-            <div className="auth-feature"><span>📅</span> Smart calendar scheduling</div>
-            <div className="auth-feature"><span>⚖️</span> Fair access for everyone</div>
-            <div className="auth-feature"><span>📊</span> Usage analytics</div>
+            <div className="auth-feature"><W8Icon name="calendar" size={22} alt="" /> Smart calendar scheduling</div>
+            <div className="auth-feature"><W8Icon name="verification" size={22} alt="" /> Fair access for everyone</div>
+            <div className="auth-feature"><W8Icon name="analytics" size={22} alt="" /> Usage analytics</div>
           </div>
         </div>
       </div>

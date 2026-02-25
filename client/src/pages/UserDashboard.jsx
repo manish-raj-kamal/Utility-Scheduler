@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getMyBookings, getUserStats, getUtilities } from '../services/api';
+import W8Icon from '../components/W8Icon';
 
 const greetingByHour = () => {
   const h = new Date().getHours();
@@ -11,10 +12,10 @@ const greetingByHour = () => {
 };
 
 const statConfig = [
-  { key: 'totalBookings', label: 'Total Bookings', icon: '📦', color: '#2f6fed' },
-  { key: 'activeBookings', label: 'Active Now', icon: '⚡', color: '#0ea95f' },
-  { key: 'totalHours', label: 'Hours Used', icon: '⏱️', color: '#e67e22' },
-  { key: 'totalSpent', label: 'Amount Spent', icon: '💰', color: '#8b5cf6', prefix: '₹' }
+  { key: 'totalBookings', label: 'Total Bookings', iconName: 'bookings', color: '#2f6fed' },
+  { key: 'activeBookings', label: 'Active Now', iconName: 'utilities', color: '#0ea95f' },
+  { key: 'totalHours', label: 'Hours Used', iconName: 'clock', color: '#e67e22' },
+  { key: 'totalSpent', label: 'Amount Spent', iconName: 'coins', color: '#8b5cf6', prefix: '₹' }
 ];
 
 export default function UserDashboard() {
@@ -44,7 +45,7 @@ export default function UserDashboard() {
       <section className="stats-grid">
         {statConfig.map((s) => (
           <article className="dash-stat-card" key={s.key} style={{ '--accent': s.color }}>
-            <div className="dash-stat-icon">{s.icon}</div>
+            <div className="dash-stat-icon"><W8Icon name={s.iconName} size={32} alt={s.label} /></div>
             <div className="dash-stat-info">
               <span>{s.label}</span>
               <strong>{s.prefix || ''}{stats?.[s.key] ?? '--'}</strong>

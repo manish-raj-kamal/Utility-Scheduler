@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import W8Icon from '../components/W8Icon';
 
 const roleLabels = {
   superadmin: { label: 'Super Admin', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
@@ -7,9 +8,9 @@ const roleLabels = {
 };
 
 const statItems = [
-  { key: 'trustScore', label: 'Trust Score', icon: '🛡️', suffix: '/100', color: '#22c55e' },
-  { key: 'totalUsageHours', label: 'Usage Hours', icon: '⏱️', suffix: 'h', color: '#3b82f6' },
-  { key: 'penaltyCount', label: 'Penalties', icon: '⚠️', suffix: '', color: '#ef4444' },
+  { key: 'trustScore', label: 'Trust Score', iconName: 'shield', suffix: '/100', color: '#22c55e' },
+  { key: 'totalUsageHours', label: 'Usage Hours', iconName: 'clock', suffix: 'h', color: '#3b82f6' },
+  { key: 'penaltyCount', label: 'Penalties', iconName: 'verification', suffix: '', color: '#ef4444' },
 ];
 
 export default function ProfilePage() {
@@ -52,7 +53,7 @@ export default function ProfilePage() {
         <div className="profile-info-row">
           {user?.flatNumber && (
             <div className="profile-chip">
-              <span className="profile-chip-icon">🏠</span>
+              <W8Icon name="home" size={22} alt="flat" className="profile-chip-icon" />
               <div>
                 <small>Flat / Unit</small>
                 <strong>{user.flatNumber}</strong>
@@ -61,7 +62,7 @@ export default function ProfilePage() {
           )}
           {user?.phone && (
             <div className="profile-chip">
-              <span className="profile-chip-icon">📞</span>
+              <W8Icon name="phone" size={22} alt="phone" className="profile-chip-icon" />
               <div>
                 <small>Phone</small>
                 <strong>{user.phone}</strong>
@@ -69,7 +70,7 @@ export default function ProfilePage() {
             </div>
           )}
           <div className="profile-chip">
-            <span className="profile-chip-icon">📅</span>
+            <W8Icon name="calendar" size={22} alt="joined" className="profile-chip-icon" />
             <div>
               <small>Joined</small>
               <strong>{user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—'}</strong>
@@ -82,8 +83,8 @@ export default function ProfilePage() {
       <div className="profile-stats-row">
         {statItems.map((s) => (
           <div className="profile-stat-card" key={s.key}>
-            <div className="profile-stat-icon" style={{ background: `${s.color}18`, color: s.color }}>
-              {s.icon}
+            <div className="profile-stat-icon" style={{ background: `${s.color}18` }}>
+              <W8Icon name={s.iconName} size={28} alt={s.label} />
             </div>
             <div className="profile-stat-info">
               <span className="profile-stat-label">{s.label}</span>

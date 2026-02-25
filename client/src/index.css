@@ -122,7 +122,15 @@ h1, h2, h3, p {
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(47, 111, 237, 0.08);
 }
-.sb-link-icon { font-size: 1.15rem; flex-shrink: 0; }
+.sb-link-icon { flex-shrink: 0; width: 22px; height: 22px; object-fit: contain; }
+
+/* Icons8 watercolor image icons — prevent any color bleed from parent */
+.w8-icon {
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  filter: none !important;
+}
 
 /* ── Collapse button (admin "More") ── */
 .sb-collapse-btn { justify-content: flex-start; }

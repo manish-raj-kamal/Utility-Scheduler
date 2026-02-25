@@ -1,13 +1,16 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import W8Icon from '../components/W8Icon';
 
-/* ── Icon map ── */
-const icons = {
-  Dashboard: '🏠', 'Admin Home': '🏠', Utilities: '⚡', Calendar: '📅',
-  Bookings: '📦', 'All Bookings': '📦', Notifications: '🔔', Profile: '👤',
-  Users: '👥', Organizations: '🏢', Analytics: '📊', 'Audit Logs': '📋',
-  Verification: '🛡️', Settings: '⚙️',
+/* ── Icon name map (maps nav label → W8Icon name key) ── */
+const navIconNames = {
+  Dashboard: 'home', 'Admin Home': 'admin', Utilities: 'utilities',
+  Calendar: 'calendar', Bookings: 'bookings', 'All Bookings': 'bookings',
+  Notifications: 'notifications', Profile: 'profile',
+  Users: 'users', Organizations: 'organizations',
+  Analytics: 'analytics', 'Audit Logs': 'audit',
+  Verification: 'verification', Settings: 'settings',
 };
 
 const userMainLinks = [
@@ -48,7 +51,7 @@ function SidebarLink({ link, onClick }) {
       className={({ isActive }) => `sb-link ${isActive ? 'active' : ''}`}
       onClick={onClick}
     >
-      <span className="sb-link-icon">{icons[link.label] || '📄'}</span>
+      <W8Icon name={navIconNames[link.label] || 'home'} size={22} alt={link.label} className="sb-link-icon" />
       {link.label}
     </NavLink>
   );
@@ -83,13 +86,13 @@ export default function AppLayout() {
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         {/* Brand */}
         <div className="sb-brand">
-          <span className="sb-brand-icon">⚡</span>
+          <W8Icon name="utilities" size={26} alt="lightning" className="sb-brand-icon" />
           <span className="sb-brand-text">UtilityScheduler</span>
         </div>
 
         {/* Search (visual placeholder) */}
         <div className="sb-search">
-          <span className="sb-search-icon">🔍</span>
+          <W8Icon name="search" size={18} alt="search" className="sb-search-icon" />
           <span>Search</span>
         </div>
 
@@ -106,7 +109,7 @@ export default function AppLayout() {
                 className={`sb-link sb-collapse-btn ${moreOpen ? 'open' : ''}`}
                 onClick={() => setMoreOpen((v) => !v)}
               >
-                <span className="sb-link-icon">📂</span>
+                <W8Icon name="folder" size={22} alt="more" className="sb-link-icon" />
                 More
                 <span className="sb-chevron">{moreOpen ? '▾' : '▸'}</span>
               </button>

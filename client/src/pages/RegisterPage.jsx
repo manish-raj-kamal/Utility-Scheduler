@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { sendRegistrationOtp } from '../services/api';
 import GoogleLoginButton from '../components/GoogleLoginButton';
+import W8Icon from '../components/W8Icon';
 
 /* ── tiny particle canvas drawn behind the right panel ── */
 function ParticleCanvas() {
@@ -284,7 +285,7 @@ export default function RegisterPage() {
       {/* Left branding panel */}
       <div className="auth-side">
         <div className="auth-side-content reg-side-content" key={step}>
-          <Link to="/" className="auth-brand">⚡ UtilityScheduler</Link>
+          <Link to="/" className="auth-brand"><W8Icon name="utilities" size={22} alt="" style={{marginRight:6}} />UtilityScheduler</Link>
           <h1 className="reg-side-title">{sideContent.title}</h1>
           <p className="reg-side-sub">{sideContent.sub}</p>
           <div className="auth-side-features reg-side-feats">
