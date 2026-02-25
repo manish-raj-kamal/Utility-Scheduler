@@ -112,8 +112,8 @@ export default function LoginPage() {
           <div className="test-accounts">
             <p className="test-accounts-label">Quick test login</p>
             <div className="test-btns">
-              <button type="button" className="test-btn member" onClick={() => testLogin('rahul@test.com', 'test123')}>👤 Member</button>
-              <button type="button" className="test-btn admin" onClick={() => testLogin('admin@utility.com', 'admin123')}>🛡️ Org Admin</button>
+              <button type="button" className="test-btn member" onClick={() => testLogin('member@test.com', 'member123')}>👤 Member</button>
+              <button type="button" className="test-btn admin" onClick={() => testLogin('admin@test.com', 'admin123')}>🛡️ Org Admin</button>
               <button type="button" className="test-btn superadmin" onClick={() => testLogin('superadmin@utility.com', 'super123')}>⭐ Superadmin</button>
             </div>
           </div>
