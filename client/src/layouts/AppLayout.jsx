@@ -8,7 +8,6 @@ const userLinks = [
   { path: '/calendar', label: 'Calendar' },
   { path: '/my-bookings', label: 'Bookings' },
   { path: '/notifications', label: 'Notifications' },
-  { path: '/verification', label: 'Verification' },
   { path: '/profile', label: 'Profile' }
 ];
 
