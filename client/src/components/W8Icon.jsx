@@ -13,20 +13,20 @@ const ICONS = {
   utilities:     'vzhJNJm8xDLu',   // lightning bolt
   calendar:      'QKivoN3fCm7f',
   bookings:      'NMf0U3aRO2MV',   // box / package
-  notifications: 'HdIjijJ4PNyz',   // bell / alarm
-  profile:       'NJ1TH7krhhxS',   // male user
-  users:         'dZt5aTCBGdvF',   // crowd
-  organizations: 'mRKx2xZqKyFy',   // company building
+  notifications: 'z8yqcMdq4T2h',   // appointment reminders
+  profile:       'HEBTcR9O3uzR',   // 3D fluent user
+  users:         'qQEmBWcJr3TX',   // 3D fluent user male
+  organizations: 'WBGSDb5LN2fp',   // 3D fluent small storefront with orange awning
   analytics:     'DvsgOYRjuwlr',   // combo chart
   audit:         'UTOf1sBsM6Tv',   // news / clipboard
   verification:  'dwhGzD9VAiZ3',   // padlock / verification
   folder:        'FYI6LfcQUyOR',   // opened folder
   search:        'OxDyKkYjQ5Yk',   // binoculars
-  admin:         'aGnwPPVtbbQ7',   // administrator male
+  admin:         't2VDiIioQ57t',   // 3D fluent crown (admin home)
   settings:      'Rg9GBTEpoDts',
   check:         'mswvLW2p0NED',
-  clock:         'nHY04GtENGyX',
-  coins:         'AvmPijdPezYo',
+  clock:         'nAOkRMJk7cKG',   // 3D fluent orange hourglass (hours used)
+  coins:         'i8JDqvoJdGGY',   // 3D fluent dollar money bag (amount spent)
   shield:        'j9U3SvBtTjaM',   // security pass
   flat:          'QpU1t4EQD0xS',   // folder (repurposed as home unit)
   phone:         'FetLlgyOVldq',   // event (repurposed)
