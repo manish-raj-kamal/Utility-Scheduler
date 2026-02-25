@@ -44,7 +44,7 @@ const superadminOnly = checkRole('superadmin');
  * or is a superadmin (who can access everything).
  * Must be used AFTER protect middleware so req.user is set.
  */
-const checkOrganizationAccess = (req, res, next) => {
+const checkOrganizationMembership = (req, res, next) => {
   if (req.user.role === 'superadmin') return next();
   if (!req.user.organizationId) {
     return res.status(403).json({ message: 'No organization assigned' });
@@ -53,6 +53,9 @@ const checkOrganizationAccess = (req, res, next) => {
   req.organizationId = req.user.organizationId;
   next();
 };
+
+// Backward-compatible alias
+const checkOrganizationAccess = checkOrganizationMembership;
 
 /**
  * Restrict actions based on the user's organization verificationLevel.
@@ -87,4 +90,12 @@ const checkVerificationLevel = (minLevel) => {
   };
 };
 
-module.exports = { protect, checkRole, adminOnly, superadminOnly, checkOrganizationAccess, checkVerificationLevel };
+module.exports = {
+  protect,
+  checkRole,
+  adminOnly,
+  superadminOnly,
+  checkOrganizationMembership,
+  checkOrganizationAccess,
+  checkVerificationLevel
+};

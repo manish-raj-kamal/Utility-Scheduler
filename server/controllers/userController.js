@@ -1,4 +1,128 @@
 const User = require('../models/User');
+const Organization = require('../models/Organization');
+const AuditLog = require('../models/AuditLog');
+const { uploadBuffer, destroyImage } = require('../utils/cloudinary');
+
+const HAS_ALPHABET = /[A-Za-z]/;
+
+const getUserPayload = async (userDoc) => {
+  let organizationName = null;
+  let organizationCode = null;
+
+  if (userDoc.organizationId) {
+    const org = await Organization.findById(userDoc.organizationId).select('name organizationCode');
+    organizationName = org?.name || null;
+    organizationCode = org?.organizationCode || null;
+  }
+
+  return {
+    _id: userDoc._id,
+    name: userDoc.name,
+    email: userDoc.email,
+    role: userDoc.role,
+    organizationId: userDoc.organizationId,
+    organizationName,
+    organizationCode,
+    phone: userDoc.phone,
+    flatNumber: userDoc.flatNumber,
+    trustScore: userDoc.trustScore,
+    totalUsageHours: userDoc.totalUsageHours,
+    penaltyCount: userDoc.penaltyCount,
+    avatar: userDoc.avatar,
+    createdAt: userDoc.createdAt
+  };
+};
+
+exports.updateMyProfile = async (req, res) => {
+  try {
+    const { name, orgName } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (name !== undefined) {
+      const trimmedName = String(name).trim();
+      if (!trimmedName) return res.status(400).json({ message: 'Name is required' });
+      user.name = trimmedName;
+    }
+
+    if (orgName !== undefined) {
+      if (user.role !== 'org_admin') {
+        return res.status(403).json({ message: 'Only org_admin can update organization name' });
+      }
+      if (!user.organizationId) {
+        return res.status(400).json({ message: 'No organization assigned' });
+      }
+
+      const normalizedOrgName = String(orgName).trim();
+      if (!normalizedOrgName || !HAS_ALPHABET.test(normalizedOrgName)) {
+        return res.status(400).json({ message: 'Organization name must include at least one alphabet character' });
+      }
+
+      await Organization.findByIdAndUpdate(user.organizationId, { name: normalizedOrgName });
+    }
+
+    await user.save();
+    const payload = await getUserPayload(user);
+    res.json({ message: 'Profile updated', user: payload });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+exports.uploadMyAvatar = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: 'Avatar file is required' });
+    }
+
+    const uploaded = await uploadBuffer(req.file.buffer, 'utility-scheduler/avatars');
+
+    if (user.avatarPublicId) {
+      await destroyImage(user.avatarPublicId);
+    }
+
+    user.avatar = uploaded.secure_url;
+    user.avatarPublicId = uploaded.public_id;
+    await user.save();
+
+    const payload = await getUserPayload(user);
+    res.json({ message: 'Profile photo updated', user: payload });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+exports.deleteMyAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (user.avatarPublicId) {
+      await destroyImage(user.avatarPublicId);
+    }
+
+    if (user.organizationId) {
+      await Organization.findByIdAndUpdate(user.organizationId, { $inc: { memberCount: -1 } });
+    }
+
+    await AuditLog.create({
+      action: 'DELETE_OWN_ACCOUNT',
+      performedBy: user._id,
+      organizationId: user.organizationId || null,
+      details: { email: user.email, role: user.role }
+    });
+
+    await User.findByIdAndDelete(user._id);
+
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -57,7 +181,16 @@ exports.deleteUser = async (req, res) => {
       }
     }
 
+    if (target.avatarPublicId) {
+      await destroyImage(target.avatarPublicId);
+    }
+
     await User.findByIdAndDelete(req.params.id);
+
+    if (target.organizationId) {
+      await Organization.findByIdAndUpdate(target.organizationId, { $inc: { memberCount: -1 } });
+    }
+
     res.json({ message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

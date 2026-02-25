@@ -59,6 +59,12 @@ export const getRevenueData = () => API.get('/analytics/revenue');
 export const getUserStats = () => API.get('/analytics/user-stats');
 
 export const getAllUsers = () => API.get('/users');
+export const updateMyProfile = (data) => API.put('/users/me', data);
+export const uploadMyAvatar = (formData) =>
+  API.post('/users/me/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+export const deleteMyAccount = () => API.delete('/users/me');
 export const updateUser = (id, data) => API.put(`/users/${id}`, data);
 export const deleteUser = (id) => API.delete(`/users/${id}`);
 
@@ -74,6 +80,17 @@ export const getOrganization = (id) => API.get(`/organizations/${id}`);
 export const createOrganization = (data) => API.post('/organizations', data);
 export const updateOrganization = (id, data) => API.put(`/organizations/${id}`, data);
 export const deleteOrganization = (id) => API.delete(`/organizations/${id}`);
+export const searchOrganizations = (q = '') => API.get('/organizations/search', { params: { q } });
+export const joinOrganizationWithKey = (data) => API.post('/organizations/join', data);
+export const requestToJoinOrganization = (orgId) => API.post('/organizations/join-requests', { orgId });
+export const createMyOrganization = (data) => API.post('/organizations/self-create', data);
+export const getMyJoinRequests = () => API.get('/organizations/join-requests/me');
+export const getPendingJoinRequests = () => API.get('/organizations/join-requests/pending');
+export const reviewJoinRequest = (requestId, status) => API.patch(`/organizations/join-requests/${requestId}`, { status });
+export const regenerateOrgJoinKey = (organizationId) =>
+  organizationId
+    ? API.post(`/organizations/${organizationId}/join-key/regenerate`)
+    : API.post('/organizations/join-key/regenerate');
 
 // Verification
 export const getVerificationStatus = (orgId) => API.get(`/verification/${orgId}/status`);

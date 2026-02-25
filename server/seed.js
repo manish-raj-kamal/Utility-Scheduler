@@ -1,18 +1,29 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const dotenv = require('dotenv');
 dotenv.config();
 
 const User = require('./models/User');
 const Utility = require('./models/Utility');
 const Organization = require('./models/Organization');
+const Booking = require('./models/Booking');
+const Notification = require('./models/Notification');
+const Payment = require('./models/Payment');
+const UsageLog = require('./models/UsageLog');
+const AuditLog = require('./models/AuditLog');
+const JoinRequest = require('./models/JoinRequest');
 
 const seed = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
-    // Clear existing data
+    // Clear existing data (full reset)
+    await Booking.deleteMany({});
+    await Notification.deleteMany({});
+    await Payment.deleteMany({});
+    await UsageLog.deleteMany({});
+    await AuditLog.deleteMany({});
+    await JoinRequest.deleteMany({});
     await User.deleteMany({});
     await Utility.deleteMany({});
     await Organization.deleteMany({});
@@ -37,18 +48,30 @@ const seed = async () => {
     });
     console.log(`Organization created: ${org.name} (${org._id})`);
 
-    // 3. Create org_admin users
-    await User.create([
-      { name: 'Admin One', email: 'admin@utility.com', password: 'admin123', role: 'org_admin', flatNumber: 'OFFICE-1', trustScore: 100, organizationId: org._id },
-      { name: 'Admin Two', email: 'admin2@utility.com', password: 'admin123', role: 'org_admin', flatNumber: 'OFFICE-2', trustScore: 100, organizationId: org._id },
-    ]);
-    console.log('Org admin users created');
+    // 3. Create org_admin + member test users (exactly 3 total test IDs including superadmin)
+    const admin = await User.create({
+      name: 'Admin User',
+      email: 'admin@test.com',
+      password: 'admin123',
+      role: 'org_admin',
+      flatNumber: 'OFFICE-1',
+      trustScore: 100,
+      organizationId: org._id
+    });
 
-    // 4. Create member users
-    await User.create([
-      { name: 'Rahul Sharma', email: 'rahul@test.com', password: 'test123', role: 'member', flatNumber: 'A-101', trustScore: 95, organizationId: org._id },
-    ]);
-    console.log('Member users created');
+    const member = await User.create({
+      name: 'Member User',
+      email: 'member@test.com',
+      password: 'member123',
+      role: 'member',
+      flatNumber: 'A-101',
+      trustScore: 95,
+      organizationId: org._id
+    });
+
+    org.createdBy = admin._id;
+    org.memberCount = 2;
+    await org.save();
 
     // 5. Create utilities scoped to org
     await Utility.create([
@@ -108,10 +131,11 @@ const seed = async () => {
     console.log('\n✅ Database seeded successfully!');
     console.log('\nLogin credentials:');
     console.log('  Superadmin : superadmin@utility.com / super123');
-    console.log('  Org Admin  : admin@utility.com / admin123');
-    console.log('  Org Admin  : admin2@utility.com / admin123');
-    console.log('  Member     : rahul@test.com / test123');
+    console.log('  Org Admin  : admin@test.com / admin123');
+    console.log('  Member     : member@test.com / member123');
     console.log(`\nOrganization: ${org.name} (${org._id})`);
+    console.log(`Organization ID (search/join): ${org.organizationCode}`);
+    console.log(`Join Key (org_admin can regenerate): ${org.joinKey}`);
 
     process.exit(0);
   } catch (error) {

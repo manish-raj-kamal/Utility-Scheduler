@@ -141,6 +141,12 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const { register, registerOrg, googleLogin } = useAuth();
 
+  const getHomeRoute = (user) => {
+    if (user.role === 'superadmin') return '/admin/organizations';
+    if (user.role === 'org_admin') return '/admin';
+    return user.organizationId ? '/dashboard' : '/verification';
+  };
+
   const [mode, setMode] = useState('member');
   const [step, setStep] = useState(1);           // 1=form  2=otp  3=success
   const [form, setForm] = useState({
@@ -230,13 +236,14 @@ export default function RegisterPage() {
 
     setError(''); setLoading(true);
     try {
+      let data;
       if (isOrg) {
-        await registerOrg({ ...form, emailOtp });
+        data = await registerOrg({ ...form, emailOtp });
       } else {
-        await register({ name: form.name, email: form.email, password: form.password, flatNumber: form.flatNumber, emailOtp });
+        data = await register({ name: form.name, email: form.email, password: form.password, flatNumber: form.flatNumber, emailOtp });
       }
       setStep(3); // success
-      setTimeout(() => navigate(isOrg ? '/admin' : '/dashboard'), 1800);
+      setTimeout(() => navigate(getHomeRoute(data.user)), 1800);
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
       triggerShake();
@@ -247,8 +254,7 @@ export default function RegisterPage() {
     setError(''); setLoading(true);
     try {
       const data = await googleLogin(credential);
-      const admin = data.user.role === 'org_admin' || data.user.role === 'superadmin';
-      navigate(admin ? '/admin' : '/dashboard');
+      navigate(getHomeRoute(data.user));
     } catch (err) {
       setError(err.response?.data?.message || 'Google sign-up failed');
     } finally { setLoading(false); }

@@ -25,6 +25,10 @@ const userBottomLinks = [
   { path: '/profile', label: 'Profile' },
 ];
 
+const noOrgLinks = [
+  { path: '/verification', label: 'Verification' },
+];
+
 /* Org Admin: manage utilities, bookings, members, org analytics */
 const orgAdminMainLinks = [
   { path: '/admin', label: 'Admin Home' },
@@ -34,6 +38,7 @@ const orgAdminMainLinks = [
 ];
 
 const orgAdminExtraLinks = [
+  { path: '/verification', label: 'Verification' },
   { path: '/admin/analytics', label: 'Analytics' },
 ];
 
@@ -72,12 +77,24 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [sidebarSearch, setSidebarSearch] = useState('');
 
   const isSuperadmin = user?.role === 'superadmin';
   const isOrgAdmin = user?.role === 'org_admin';
   const isAdmin = isOrgAdmin || isSuperadmin;
-  const mainLinks = isSuperadmin ? superAdminMainLinks : isOrgAdmin ? orgAdminMainLinks : userMainLinks;
-  const extraLinks = isSuperadmin ? superAdminExtraLinks : orgAdminExtraLinks;
+  const hasOrganization = Boolean(user?.organizationId) || isSuperadmin;
+  const mainLinks = !hasOrganization
+    ? noOrgLinks
+    : isSuperadmin
+      ? superAdminMainLinks
+      : isOrgAdmin
+        ? orgAdminMainLinks
+        : userMainLinks;
+  const extraLinks = !hasOrganization
+    ? []
+    : isSuperadmin
+      ? superAdminExtraLinks
+      : orgAdminExtraLinks;
   const bottomLinks = isAdmin ? adminBottomLinks : userBottomLinks;
 
   const close = () => setMenuOpen(false);
@@ -85,6 +102,14 @@ export default function AppLayout() {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleSidebarSearch = (e) => {
+    e.preventDefault();
+    const query = sidebarSearch.trim();
+    if (!query) return;
+    navigate(`/verification?q=${encodeURIComponent(query)}`);
+    close();
   };
 
   const initials = (user?.name || '')
@@ -104,10 +129,15 @@ export default function AppLayout() {
         </div>
 
         {/* Search (visual placeholder) */}
-        <div className="sb-search">
+        <form className="sb-search" onSubmit={handleSidebarSearch}>
           <W8Icon name="search" size={18} alt="search" className="sb-search-icon" />
-          <span>Search</span>
-        </div>
+          <input
+            value={sidebarSearch}
+            onChange={(e) => setSidebarSearch(e.target.value)}
+            placeholder="Search org"
+            aria-label="Search organization"
+          />
+        </form>
 
         {/* Main navigation */}
         <nav className="sb-nav sb-nav-main">
@@ -150,6 +180,9 @@ export default function AppLayout() {
           <div className="sb-user-info">
             <strong>{user?.name}</strong>
             <span>{user?.role?.replace('_', ' ')}</span>
+            {user?.role === 'org_admin' && (user?.organizationName || user?.organizationCode) && (
+              <span>{user.organizationName || 'Organization'} {user.organizationCode ? `• ID ${user.organizationCode}` : ''}</span>
+            )}
           </div>
           <button className="sb-logout-btn" onClick={handleLogout} title="Logout">
             ↗
@@ -163,6 +196,11 @@ export default function AppLayout() {
         <header className="topbar">
           <button className="btn ghost mobile-only" onClick={() => setMenuOpen((s) => !s)}>☰ Menu</button>
           <p className="muted">Smart booking for shared society resources</p>
+          {user?.role === 'org_admin' && (user?.organizationName || user?.organizationCode) && (
+            <p className="muted" style={{ marginLeft: 'auto' }}>
+              {user.organizationName || 'Organization'} {user.organizationCode ? `• ID ${user.organizationCode}` : ''}
+            </p>
+          )}
         </header>
         <main className="page-content">
           <Outlet />

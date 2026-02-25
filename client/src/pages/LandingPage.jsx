@@ -32,7 +32,15 @@ const stats = [
 
 export default function LandingPage() {
   const { user } = useAuth();
-  const dashboardPath = user?.role === 'admin' || user?.role === 'superadmin' ? '/admin' : '/dashboard';
+  const dashboardPath = !user
+    ? '/login'
+    : user.role === 'superadmin'
+      ? '/admin/organizations'
+      : user.role === 'org_admin'
+        ? '/admin'
+        : user.organizationId
+          ? '/dashboard'
+          : '/verification';
 
   return (
     <div className="landing-page">

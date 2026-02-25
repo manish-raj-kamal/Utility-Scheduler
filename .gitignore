@@ -7,6 +7,16 @@ package-lock.json
 .env.local
 .env.*.local
 !.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Secrets / keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
 
 # Build output
 dist/

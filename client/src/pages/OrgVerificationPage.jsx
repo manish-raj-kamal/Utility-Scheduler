@@ -1,153 +1,198 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  getVerificationStatus,
-  sendEmailOtp,
-  verifyEmailOtp,
-  uploadOrgDocuments
+  createMyOrganization,
+  joinOrganizationWithKey,
+  requestToJoinOrganization,
+  searchOrganizations
 } from '../services/api';
 
-const STEPS = [
-  { level: 0, label: 'Registered', icon: '🏢', desc: 'Organization created' },
-  { level: 1, label: 'Email Verified', icon: '✉️', desc: 'Verify your contact email' },
-  { level: 2, label: 'Documents', icon: '📄', desc: 'Upload verification documents' },
-  { level: 3, label: 'Approved', icon: '✅', desc: 'Superadmin final approval' }
-];
+const DIGITS_ONLY = /^\d+$/;
+const SIX_DIGITS = /^\d{6}$/;
+const HAS_ALPHABET = /[A-Za-z]/;
 
 export default function OrgVerificationPage() {
   const { user } = useAuth();
-  const orgId = user?.organizationId;
+  const [searchParams] = useSearchParams();
 
-  const [status, setStatus] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const [joinForm, setJoinForm] = useState({ orgId: '', joinKey: '' });
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    organizationId: '',
+    type: 'society',
+    address: '',
+    contactEmail: ''
+  });
+
   const [actionLoading, setActionLoading] = useState(false);
-  const [msg, setMsg] = useState({ text: '', type: '' });
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [pinBlocked, setPinBlocked] = useState(false);
 
-  // Email OTP state
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [email, setEmail] = useState('');
-  const otpRefs = useRef([]);
-
-  // File upload state
-  const [files, setFiles] = useState([]);
-  const fileInputRef = useRef(null);
+  const hasOrganization = useMemo(() => Boolean(user?.organizationId), [user?.organizationId]);
 
   useEffect(() => {
-    if (!orgId) {
-      setLoading(false);
-      return;
+    if (user?.role === 'superadmin') {
+      window.location.href = '/admin/organizations';
     }
-    fetchStatus();
-  }, [orgId]);
+  }, [user?.role]);
 
-  const fetchStatus = async () => {
-    try {
-      const { data } = await getVerificationStatus(orgId);
-      setStatus(data);
-      setEmail(data.contactEmail || '');
-    } catch {
-      setMsg({ text: 'Failed to load verification status', type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const initialQ = (searchParams.get('q') || '').trim();
+    if (initialQ) setSearchText(initialQ);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const value = searchText.trim();
+    if (!value) return;
+    if (!DIGITS_ONLY.test(value) && value.length < 2) return;
+
+    let active = true;
+    setSearchLoading(true);
+    searchOrganizations(value)
+      .then(({ data }) => {
+        if (!active) return;
+        setSearchResults(data || []);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setSearchLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [searchText]);
 
   const flash = (text, type = 'success') => {
-    setMsg({ text, type });
-    setTimeout(() => setMsg({ text: '', type: '' }), 4000);
+    setMessage({ type, text });
+    setTimeout(() => setMessage({ type: '', text: '' }), 3500);
   };
 
-  // ── Email OTP ──
-  const handleSendOtp = async () => {
-    if (!email) return flash('Enter a contact email', 'error');
+  const reloadTo = (path) => {
+    window.location.href = path;
+  };
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    const value = searchText.trim();
+    if (!value) {
+      setSearchResults([]);
+      return;
+    }
+    if (!DIGITS_ONLY.test(value) && value.length < 2) {
+      flash('Organization name search requires at least 2 characters', 'error');
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const { data } = await searchOrganizations(value);
+      setSearchResults(data || []);
+      if (!data?.length) flash('No organizations found', 'error');
+    } catch (err) {
+      flash(err.response?.data?.message || 'Search failed', 'error');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleJoin = async (e) => {
+    e.preventDefault();
+    const orgId = joinForm.orgId.trim();
+    const joinKey = joinForm.joinKey.trim();
+
+    if (!DIGITS_ONLY.test(orgId)) return flash('orgId must contain numbers only', 'error');
+    if (!SIX_DIGITS.test(joinKey)) return flash('joinKey must be exactly 6 digits', 'error');
+
     setActionLoading(true);
     try {
-      await sendEmailOtp(orgId, email);
-      setOtpSent(true);
-      flash('OTP sent — check your email (or server console in dev mode)');
+      await joinOrganizationWithKey({ orgId, joinKey });
+      flash('Joined organization successfully');
+      reloadTo('/dashboard');
     } catch (err) {
-      flash(err.response?.data?.message || 'Failed to send OTP', 'error');
+      const responseData = err.response?.data || {};
+      if (err.response?.status === 429 || responseData.method === 'approval_only') {
+        setPinBlocked(true);
+        flash(responseData.message || 'PIN attempts exceeded. Use approval request method.', 'error');
+      } else {
+        if (typeof responseData.attemptsLeft === 'number' && responseData.attemptsLeft <= 0) {
+          setPinBlocked(true);
+        }
+        const attemptsMessage = typeof responseData.attemptsLeft === 'number'
+          ? ` (${responseData.attemptsLeft} attempts left)`
+          : '';
+        flash((responseData.message || 'Join failed') + attemptsMessage, 'error');
+      }
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleOtpChange = (index, value) => {
-    if (value.length > 1) value = value.slice(-1);
-    if (!/^\d*$/.test(value)) return;
-    const next = [...otp];
-    next[index] = value;
-    setOtp(next);
-    if (value && index < 5) otpRefs.current[index + 1]?.focus();
-  };
+  const handleRequestJoin = async () => {
+    const orgId = joinForm.orgId.trim();
+    if (!DIGITS_ONLY.test(orgId)) return flash('orgId must contain numbers only', 'error');
 
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    const code = otp.join('');
-    if (code.length !== 6) return flash('Enter the full 6-digit OTP', 'error');
     setActionLoading(true);
     try {
-      await verifyEmailOtp(orgId, code);
-      flash('Email verified!');
-      setOtpSent(false);
-      setOtp(['', '', '', '', '', '']);
-      fetchStatus();
+      await requestToJoinOrganization(orgId);
+      flash('Join request submitted. Wait for org_admin approval.');
     } catch (err) {
-      flash(err.response?.data?.message || 'Invalid OTP', 'error');
+      flash(err.response?.data?.message || 'Join request failed', 'error');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // ── Documents ──
-  const handleFileChange = (e) => {
-    setFiles(Array.from(e.target.files));
-  };
+  const handleCreateOrg = async (e) => {
+    e.preventDefault();
 
-  const handleUploadDocs = async () => {
-    if (files.length === 0) return flash('Select at least one file', 'error');
+    const name = createForm.name.trim();
+    const organizationId = createForm.organizationId.trim();
+
+    if (!name || !HAS_ALPHABET.test(name)) {
+      return flash('Organization name must contain at least one alphabet', 'error');
+    }
+    if (organizationId && !DIGITS_ONLY.test(organizationId)) {
+      return flash('organizationId must contain numbers only', 'error');
+    }
+
     setActionLoading(true);
-    const formData = new FormData();
-    files.forEach((f) => formData.append('documents', f));
     try {
-      await uploadOrgDocuments(orgId, formData);
-      flash('Documents uploaded!');
-      setFiles([]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      fetchStatus();
+      await createMyOrganization({
+        name,
+        organizationId: organizationId || undefined,
+        type: createForm.type,
+        address: createForm.address,
+        contactEmail: createForm.contactEmail
+      });
+      flash('Organization created. You are now org_admin.');
+      reloadTo('/admin');
     } catch (err) {
-      flash(err.response?.data?.message || 'Upload failed', 'error');
+      flash(err.response?.data?.message || 'Organization creation failed', 'error');
     } finally {
       setActionLoading(false);
     }
   };
 
-  // ── Render helpers ──
-  const currentLevel = status?.verificationLevel ?? 0;
+  if (user?.role === 'superadmin') return null;
 
-  if (loading) {
-    return (
-      <div className="verify-page">
-        <div className="verify-loader">
-          <div className="verify-spinner" />
-          <p>Loading verification status…</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!orgId) {
+  if (hasOrganization) {
     return (
       <div className="verify-page">
         <div className="panel" style={{ textAlign: 'center', padding: 40 }}>
-          <h2>No Organization</h2>
-          <p className="muted">You must be assigned to an organization before verifying.</p>
+          <h2>Organization Linked</h2>
+          <p className="muted">You already belong to an organization.</p>
+          <button
+            className="btn primary"
+            onClick={() => reloadTo(user?.role === 'org_admin' ? '/admin' : '/dashboard')}
+          >
+            Go to Home
+          </button>
         </div>
       </div>
     );
@@ -156,244 +201,164 @@ export default function OrgVerificationPage() {
   return (
     <div className="verify-page">
       <div className="page-head">
-        <h1>Organization Verification</h1>
-        <p className="muted">Complete each step to unlock full platform features.</p>
+        <h1>Join or Create Organization</h1>
+        <p className="muted">Required before using booking and admin features.</p>
       </div>
 
-      {/* ── Stepper ── */}
-      <div className="verify-stepper">
-        {STEPS.map((step, i) => {
-          const done = currentLevel > step.level || (step.level === 0);
-          const active = step.level === currentLevel && step.level !== 0;
-          return (
-            <div
-              key={step.level}
-              className={`verify-step ${done ? 'done' : ''} ${active ? 'active' : ''}`}
-              style={{ animationDelay: `${i * 0.12}s` }}
-            >
-              <div className="verify-step-icon">
-                {done ? '✓' : step.icon}
-              </div>
-              <div className="verify-step-info">
-                <strong>{step.label}</strong>
-                <span>{step.desc}</span>
-              </div>
-              {i < STEPS.length - 1 && <div className={`verify-step-line ${done ? 'done' : ''}`} />}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── Flash message ── */}
-      {msg.text && (
-        <div className={`verify-flash ${msg.type}`}>
-          {msg.type === 'error' ? '⚠️' : '✅'} {msg.text}
+      {message.text && (
+        <div className={`verify-flash ${message.type === 'error' ? 'error' : 'success'}`}>
+          {message.type === 'error' ? '⚠️' : '✅'} {message.text}
         </div>
       )}
 
-      {/* ── Level badge ── */}
-      <div className="verify-level-badge" style={{ animationDelay: '0.3s' }}>
-        <div className="verify-level-ring">
-          <span>{currentLevel}</span>
+      <div className="verify-card">
+        <div className="verify-card-header">
+          <span className="verify-card-icon">🔎</span>
+          <div>
+            <h3>Search Organizations</h3>
+            <p className="muted">Search by organization name or numeric orgId</p>
+          </div>
         </div>
-        <div>
-          <strong>Verification Level {currentLevel}</strong>
-          <p className="muted">
-            {currentLevel === 0 && 'Verify your email to reach Level 1'}
-            {currentLevel === 1 && 'Upload documents to reach Level 2'}
-            {currentLevel === 2 && 'Waiting for superadmin approval for Level 3'}
-            {currentLevel === 3 && 'Fully verified — all features unlocked!'}
-          </p>
-        </div>
+        <form className="verify-card-body" onSubmit={handleSearch}>
+          <label className="auth-label">
+            Org name or orgId
+            <input
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Sunrise or 123456"
+            />
+          </label>
+          <button className="btn primary" disabled={searchLoading} type="submit">
+            {searchLoading ? 'Searching…' : 'Search'}
+          </button>
+        </form>
+
+        {searchResults.length > 0 && (
+          <div className="verify-card-body" style={{ borderTop: '1px solid #e8ecf8' }}>
+            <ul className="verify-file-list">
+              {searchResults.map((org) => (
+                <li key={org._id}>
+                  <strong>{org.name}</strong>
+                  <span className="muted"> — orgId: {org.organizationCode || 'N/A'}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
-      {/* ── Step 1 — Email Verification ── */}
-      {currentLevel < 1 && (
-        <div className="verify-card fade-in-up" style={{ animationDelay: '0.15s' }}>
-          <div className="verify-card-header">
-            <span className="verify-card-icon">✉️</span>
-            <div>
-              <h3>Verify Contact Email</h3>
-              <p className="muted">We'll send a 6-digit code to your organization email</p>
-            </div>
+      <div className="verify-card" style={{ marginTop: 16 }}>
+        <div className="verify-card-header">
+          <span className="verify-card-icon">🔐</span>
+          <div>
+            <h3>Join Organization</h3>
+            <p className="muted">Join instantly with orgId and 6-digit key, or send request</p>
           </div>
-
-          {!otpSent ? (
-            <div className="verify-card-body">
-              <label className="auth-label">
-                Organization email
-                <input
-                  type="email"
-                  placeholder="admin@yourorg.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </label>
-              <button
-                className="btn primary"
-                onClick={handleSendOtp}
-                disabled={actionLoading}
-              >
-                {actionLoading ? 'Sending…' : 'Send OTP'}
-              </button>
-            </div>
-          ) : (
-            <div className="verify-card-body">
-              <p style={{ marginBottom: 12 }}>Enter the 6-digit code sent to <strong>{email}</strong></p>
-              <div className="otp-group">
-                {otp.map((digit, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => (otpRefs.current[i] = el)}
-                    className="otp-input"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpChange(i, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    autoFocus={i === 0}
-                  />
-                ))}
-              </div>
-              <div className="actions-inline" style={{ marginTop: 12 }}>
-                <button
-                  className="btn primary"
-                  onClick={handleVerifyOtp}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? 'Verifying…' : 'Verify'}
-                </button>
-                <button
-                  className="btn ghost"
-                  onClick={() => { setOtpSent(false); setOtp(['', '', '', '', '', '']); }}
-                >
-                  Resend
-                </button>
-              </div>
-            </div>
-          )}
         </div>
-      )}
-
-      {/* ── Step 2 — Document Upload ── */}
-      {currentLevel >= 1 && currentLevel < 2 && (
-        <div className="verify-card fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <div className="verify-card-header">
-            <span className="verify-card-icon">📄</span>
-            <div>
-              <h3>Upload Verification Documents</h3>
-              <p className="muted">
-                Upload registration certificate, society docs, or any proof (PDF/PNG/JPG, max 5 MB each)
-              </p>
-            </div>
-          </div>
-
-          <div className="verify-card-body">
-            <div
-              className="verify-dropzone"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <span className="verify-dropzone-icon">📁</span>
-              <p>{files.length > 0 ? `${files.length} file(s) selected` : 'Click to select files'}</p>
+        <form className="verify-card-body" onSubmit={handleJoin}>
+          <div className="auth-row">
+            <label className="auth-label">
+              orgId (numbers only)
               <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.png,.jpg,.jpeg,.webp"
-                style={{ display: 'none' }}
-                onChange={handleFileChange}
+                value={joinForm.orgId}
+                onChange={(e) => setJoinForm((p) => ({ ...p, orgId: e.target.value.replace(/\D/g, '') }))}
+                placeholder="123456"
+                inputMode="numeric"
               />
-            </div>
-
-            {files.length > 0 && (
-              <ul className="verify-file-list">
-                {files.map((f, i) => (
-                  <li key={i}>📎 {f.name} <span className="muted">({(f.size / 1024).toFixed(0)} KB)</span></li>
-                ))}
-              </ul>
-            )}
-
-            <button
-              className="btn primary"
-              onClick={handleUploadDocs}
-              disabled={actionLoading || files.length === 0}
-            >
-              {actionLoading ? 'Uploading…' : 'Upload Documents'}
+            </label>
+            <label className="auth-label">
+              joinKey (6 digits)
+              <input
+                value={joinForm.joinKey}
+                onChange={(e) => setJoinForm((p) => ({ ...p, joinKey: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                placeholder="654321"
+                inputMode="numeric"
+              />
+            </label>
+          </div>
+          <div className="actions-inline">
+            <button className="btn primary" disabled={actionLoading || pinBlocked} type="submit">
+              Join Now
+            </button>
+            <button className="btn ghost" disabled={actionLoading} type="button" onClick={handleRequestJoin}>
+              Request to Join
             </button>
           </div>
-
-          {/* Show previously uploaded docs */}
-          {status?.documents?.length > 0 && (
-            <div className="verify-card-body" style={{ borderTop: '1px solid #e8ecf8' }}>
-              <strong>Previously uploaded:</strong>
-              <ul className="verify-file-list">
-                {status.documents.map((d, i) => (
-                  <li key={i}>📎 {d.name}</li>
-                ))}
-              </ul>
-            </div>
+          {pinBlocked && (
+            <p className="muted" style={{ marginTop: 8 }}>
+              PIN join is blocked for 24 hours after 5 failed attempts. Use Request to Join.
+            </p>
           )}
-        </div>
-      )}
+        </form>
+      </div>
 
-      {/* ── Step 3 — Awaiting Approval ── */}
-      {currentLevel === 2 && (
-        <div className="verify-card fade-in-up" style={{ animationDelay: '0.25s' }}>
-          <div className="verify-card-header">
-            <span className="verify-card-icon pulse-icon">⏳</span>
-            <div>
-              <h3>Awaiting Superadmin Approval</h3>
-              <p className="muted">
-                Your documents are under review. You'll be notified once approved.
-              </p>
-            </div>
-          </div>
-          <div className="verify-card-body" style={{ textAlign: 'center' }}>
-            <div className="verify-waiting-anim">
-              <div className="verify-dot" style={{ animationDelay: '0s' }} />
-              <div className="verify-dot" style={{ animationDelay: '0.2s' }} />
-              <div className="verify-dot" style={{ animationDelay: '0.4s' }} />
-            </div>
-            <p className="muted">Sit tight — this usually takes less than 24 hours</p>
+      <div className="verify-card" style={{ marginTop: 16 }}>
+        <div className="verify-card-header">
+          <span className="verify-card-icon">🏢</span>
+          <div>
+            <h3>Create New Organization</h3>
+            <p className="muted">Creates organization and upgrades your role to org_admin</p>
           </div>
         </div>
-      )}
+        <form className="verify-card-body" onSubmit={handleCreateOrg}>
+          <div className="auth-row">
+            <label className="auth-label">
+              Organization name
+              <input
+                value={createForm.name}
+                onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="Sunrise Apartments"
+                required
+              />
+            </label>
+            <label className="auth-label">
+              organizationId (optional, numbers only)
+              <input
+                value={createForm.organizationId}
+                onChange={(e) => setCreateForm((p) => ({ ...p, organizationId: e.target.value.replace(/\D/g, '') }))}
+                placeholder="123456"
+                inputMode="numeric"
+              />
+            </label>
+          </div>
 
-      {/* ── Level 3 — All done ── */}
-      {currentLevel === 3 && (
-        <div className="verify-card verify-card-success fade-in-up" style={{ animationDelay: '0.15s' }}>
-          <div className="verify-card-header">
-            <span className="verify-card-icon">🎉</span>
-            <div>
-              <h3>Fully Verified!</h3>
-              <p>Your organization has full access to all platform features.</p>
-            </div>
+          <div className="auth-row">
+            <label className="auth-label">
+              Type
+              <select
+                value={createForm.type}
+                onChange={(e) => setCreateForm((p) => ({ ...p, type: e.target.value }))}
+              >
+                <option value="society">Society</option>
+                <option value="college">College</option>
+                <option value="company">Company</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label className="auth-label">
+              Contact email (optional)
+              <input
+                type="email"
+                value={createForm.contactEmail}
+                onChange={(e) => setCreateForm((p) => ({ ...p, contactEmail: e.target.value }))}
+                placeholder="admin@org.com"
+              />
+            </label>
           </div>
-        </div>
-      )}
 
-      {/* ── Feature limits info ── */}
-      <div className="verify-info-banner fade-in-up" style={{ animationDelay: '0.35s' }}>
-        <strong>What each level unlocks:</strong>
-        <div className="verify-info-grid">
-          <div className="verify-info-item">
-            <span className="verify-info-level">0</span>
-            <p>Up to 3 bookings per week</p>
-          </div>
-          <div className="verify-info-item">
-            <span className="verify-info-level lv1">1</span>
-            <p>Unlimited bookings</p>
-          </div>
-          <div className="verify-info-item">
-            <span className="verify-info-level lv2">2</span>
-            <p>Priority waitlist + analytics</p>
-          </div>
-          <div className="verify-info-item">
-            <span className="verify-info-level lv3">3</span>
-            <p>All features + custom branding</p>
-          </div>
-        </div>
+          <label className="auth-label">
+            Address (optional)
+            <input
+              value={createForm.address}
+              onChange={(e) => setCreateForm((p) => ({ ...p, address: e.target.value }))}
+              placeholder="42 MG Road"
+            />
+          </label>
+
+          <button className="btn primary" disabled={actionLoading} type="submit">
+            Create Organization
+          </button>
+        </form>
       </div>
     </div>
   );

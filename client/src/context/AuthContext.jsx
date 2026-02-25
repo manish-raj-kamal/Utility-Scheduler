@@ -30,6 +30,13 @@ export const AuthProvider = ({ children }) => {
       .finally(() => setLoading(false));
   }, []);
 
+  const refreshUser = async () => {
+    const { data } = await getMe();
+    setUser(data);
+    localStorage.setItem('user', JSON.stringify(data));
+    return data;
+  };
+
   const login = async (credentials) => {
     const { data } = await loginUser(credentials);
     localStorage.setItem('token', data.token);
@@ -68,7 +75,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const value = useMemo(() => ({ user, loading, login, register, registerOrg, googleLogin, logout }), [user, loading]);
+  const value = useMemo(() => ({ user, loading, login, register, registerOrg, googleLogin, logout, refreshUser }), [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

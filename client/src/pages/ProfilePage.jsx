@@ -1,4 +1,7 @@
+import { useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { deleteMyAccount, updateMyProfile, uploadMyAvatar } from '../services/api';
 import W8Icon from '../components/W8Icon';
 
 const roleLabels = {
@@ -14,29 +17,93 @@ const statItems = [
 ];
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+  const navigate = useNavigate();
+  const fileRef = useRef(null);
+
+  const [name, setName] = useState(user?.name || '');
+  const [orgName, setOrgName] = useState(user?.organizationName || '');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState({ text: '', type: '' });
+
   const role = roleLabels[user?.role] || roleLabels.member;
-  const initials = (user?.name || '')
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+
+  const initials = useMemo(() =>
+    (user?.name || '')
+      .split(' ')
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2), [user?.name]
+  );
+
+  const flash = (text, type = 'success') => {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: '', type: '' }), 3000);
+  };
+
+  const handleSave = async () => {
+    setBusy(true);
+    try {
+      await updateMyProfile({
+        name,
+        ...(user?.role === 'org_admin' ? { orgName } : {})
+      });
+      await refreshUser();
+      flash('Profile updated');
+    } catch (err) {
+      flash(err.response?.data?.message || 'Failed to update profile', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    setBusy(true);
+    try {
+      await uploadMyAvatar(formData);
+      await refreshUser();
+      flash('Profile photo updated');
+    } catch (err) {
+      flash(err.response?.data?.message || 'Failed to upload photo', 'error');
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const ok = window.confirm('Delete your account permanently? This cannot be undone.');
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      await deleteMyAccount();
+      logout();
+      navigate('/login');
+    } catch (err) {
+      flash(err.response?.data?.message || 'Failed to delete account', 'error');
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="profile-page">
-      {/* Glass hero card */}
+      {msg.text && <p className={`error-banner ${msg.type === 'error' ? '' : 'success'}`}>{msg.text}</p>}
+
       <div className="profile-glass-card">
         <div className="profile-glass-bg" />
 
         <div className="profile-header">
           <div className="profile-avatar-ring">
             <div className="profile-avatar">
-              {user?.avatar ? (
-                <img src={user.avatar} alt={user.name} />
-              ) : (
-                <span>{initials}</span>
-              )}
+              {user?.avatar ? <img src={user.avatar} alt={user.name} /> : <span>{initials}</span>}
             </div>
           </div>
 
@@ -46,40 +113,72 @@ export default function ProfilePage() {
             <span className="profile-role-badge" style={{ color: role.color, background: role.bg }}>
               {role.label}
             </span>
+            {user?.role === 'org_admin' && (
+              <p className="muted" style={{ marginTop: 8 }}>
+                {user?.organizationName || 'Organization'} {user?.organizationCode ? `• ID ${user.organizationCode}` : ''}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Info chips */}
         <div className="profile-info-row">
-          {user?.flatNumber && (
-            <div className="profile-chip">
-              <W8Icon name="home" size={22} alt="flat" className="profile-chip-icon" />
-              <div>
-                <small>Flat / Unit</small>
-                <strong>{user.flatNumber}</strong>
-              </div>
-            </div>
-          )}
-          {user?.phone && (
-            <div className="profile-chip">
-              <W8Icon name="phone" size={22} alt="phone" className="profile-chip-icon" />
-              <div>
-                <small>Phone</small>
-                <strong>{user.phone}</strong>
-              </div>
-            </div>
-          )}
           <div className="profile-chip">
             <W8Icon name="calendar" size={22} alt="joined" className="profile-chip-icon" />
             <div>
               <small>Joined</small>
-              <strong>{user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—'}</strong>
+              <strong>{user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</strong>
             </div>
           </div>
+          {user?.role === 'org_admin' && (
+            <div className="profile-chip">
+              <W8Icon name="organizations" size={22} alt="org" className="profile-chip-icon" />
+              <div>
+                <small>Organization ID</small>
+                <strong>{user?.organizationCode || '—'}</strong>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Stats cards */}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <h3 style={{ marginBottom: 12 }}>Edit Profile</h3>
+        <div className="auth-row">
+          <label className="auth-label">
+            Admin name
+            <input value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          {user?.role === 'org_admin' && (
+            <label className="auth-label">
+              Organization name
+              <input value={orgName} onChange={(e) => setOrgName(e.target.value)} />
+            </label>
+          )}
+        </div>
+
+        <div className="actions-inline" style={{ marginTop: 12 }}>
+          <button className="btn primary" disabled={busy} onClick={handleSave}>Save Changes</button>
+          <button className="btn ghost" disabled={busy} onClick={() => fileRef.current?.click()}>Change Profile Photo</button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleAvatarUpload}
+          />
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginTop: 16 }}>
+        <h3 style={{ marginBottom: 8 }}>Danger Zone</h3>
+        <p className="muted" style={{ marginBottom: 12 }}>
+          Deleting account removes profile photo from Cloudinary and deletes your user account.
+        </p>
+        <button className="btn" style={{ background: '#fee2e2', color: '#b91c1c' }} onClick={handleDeleteAccount} disabled={busy}>
+          Delete Account
+        </button>
+      </div>
+
       <div className="profile-stats-row">
         {statItems.map((s) => (
           <div className="profile-stat-card" key={s.key}>

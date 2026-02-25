@@ -20,7 +20,14 @@ import OrgVerificationPage from './pages/OrgVerificationPage';
 import AdminOrganizations from './pages/AdminOrganizations';
 import NotFoundPage from './pages/NotFoundPage';
 
-const ProtectedRoute = ({ children, allowedRoles = null }) => {
+const getDefaultRouteForUser = (user) => {
+  if (!user) return '/login';
+  if (user.role === 'superadmin') return '/admin/organizations';
+  if (user.role === 'org_admin') return '/admin';
+  return user.organizationId ? '/dashboard' : '/verification';
+};
+
+const ProtectedRoute = ({ children, allowedRoles = null, requireOrganization = false }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -33,9 +40,12 @@ const ProtectedRoute = ({ children, allowedRoles = null }) => {
 
   if (!user) return <Navigate to="/login" />;
 
+  if (requireOrganization && user.role !== 'superadmin' && !user.organizationId) {
+    return <Navigate to="/verification" />;
+  }
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    const isAdminRole = ['org_admin', 'superadmin'].includes(user.role);
-    return <Navigate to={isAdminRole ? '/admin' : '/dashboard'} />;
+    return <Navigate to={getDefaultRouteForUser(user)} />;
   }
 
   return children;
@@ -45,7 +55,7 @@ const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (user) {
-    return <Navigate to={['org_admin', 'superadmin'].includes(user.role) ? '/admin' : '/dashboard'} />;
+    return <Navigate to={getDefaultRouteForUser(user)} />;
   }
   return children;
 };
@@ -64,7 +74,7 @@ export default function App() {
       </Route>
 
       {/* Member + Org Admin: view/book utilities (no superadmin) */}
-      <Route element={<ProtectedRoute allowedRoles={['member', 'org_admin']}><AppLayout /></ProtectedRoute>}>
+      <Route element={<ProtectedRoute allowedRoles={['member', 'org_admin']} requireOrganization><AppLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<UserDashboard />} />
         <Route path="/utilities" element={<UtilitiesPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
@@ -72,23 +82,27 @@ export default function App() {
       </Route>
 
       {/* Org Admin + Superadmin: admin home + analytics */}
-      <Route element={<ProtectedRoute allowedRoles={['org_admin', 'superadmin']}><AppLayout /></ProtectedRoute>}>
+      <Route element={<ProtectedRoute allowedRoles={['org_admin', 'superadmin']} requireOrganization><AppLayout /></ProtectedRoute>}>
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/analytics" element={<AnalyticsPage />} />
       </Route>
 
       {/* Org Admin only: manage utilities, bookings, members */}
-      <Route element={<ProtectedRoute allowedRoles={['org_admin']}><AppLayout /></ProtectedRoute>}>
+      <Route element={<ProtectedRoute allowedRoles={['org_admin']} requireOrganization><AppLayout /></ProtectedRoute>}>
         <Route path="/admin/utilities" element={<AdminUtilities />} />
         <Route path="/admin/bookings" element={<AdminBookings />} />
         <Route path="/admin/users" element={<AdminUsers />} />
       </Route>
 
-      {/* Superadmin only: organisations list, approve org, audit logs */}
-      <Route element={<ProtectedRoute allowedRoles={['superadmin']}><AppLayout /></ProtectedRoute>}>
+      {/* Logged-in users: join/create organization */}
+      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        <Route path="/verification" element={<OrgVerificationPage />} />
+      </Route>
+
+      {/* Superadmin only: organisations list, audit logs */}
+      <Route element={<ProtectedRoute allowedRoles={['superadmin']} requireOrganization><AppLayout /></ProtectedRoute>}>
         <Route path="/admin/organizations" element={<AdminOrganizations />} />
         <Route path="/admin/audit" element={<AuditLogsPage />} />
-        <Route path="/verification" element={<OrgVerificationPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

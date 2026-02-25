@@ -6,10 +6,40 @@ const AuditLog = require('../models/AuditLog');
 const { sendEmail } = require('../utils/mailer');
 const { createOtp, verifyOtp } = require('../utils/otpStore');
 
+const HAS_ALPHABET = /[A-Za-z]/;
+
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE });
+};
+
+const buildUserPayload = async (userDoc) => {
+  let organizationName = null;
+  let organizationCode = null;
+
+  if (userDoc.organizationId) {
+    const org = await Organization.findById(userDoc.organizationId).select('name organizationCode');
+    organizationName = org?.name || null;
+    organizationCode = org?.organizationCode || null;
+  }
+
+  return {
+    _id: userDoc._id,
+    name: userDoc.name,
+    email: userDoc.email,
+    role: userDoc.role,
+    organizationId: userDoc.organizationId,
+    organizationName,
+    organizationCode,
+    flatNumber: userDoc.flatNumber,
+    trustScore: userDoc.trustScore,
+    totalUsageHours: userDoc.totalUsageHours,
+    penaltyCount: userDoc.penaltyCount,
+    phone: userDoc.phone,
+    avatar: userDoc.avatar,
+    createdAt: userDoc.createdAt
+  };
 };
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -77,18 +107,15 @@ exports.register = async (req, res) => {
       organizationId: organizationId || null
     });
 
+    if (user.organizationId) {
+      await Organization.findByIdAndUpdate(user.organizationId, { $inc: { memberCount: 1 } });
+    }
+
     const token = generateToken(user._id);
+    const userPayload = await buildUserPayload(user);
     res.status(201).json({
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        organizationId: user.organizationId,
-        flatNumber: user.flatNumber,
-        trustScore: user.trustScore
-      }
+      user: userPayload
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -105,19 +132,10 @@ exports.login = async (req, res) => {
     if (!isMatch) return res.status(401).json({ message: 'Invalid email or password' });
 
     const token = generateToken(user._id);
+    const userPayload = await buildUserPayload(user);
     res.json({
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        organizationId: user.organizationId,
-        flatNumber: user.flatNumber,
-        trustScore: user.trustScore,
-        totalUsageHours: user.totalUsageHours,
-        penaltyCount: user.penaltyCount
-      }
+      user: userPayload
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -127,7 +145,8 @@ exports.login = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
-    res.json(user);
+    const payload = await buildUserPayload(user);
+    res.json(payload);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -167,20 +186,10 @@ exports.googleLogin = async (req, res) => {
     }
 
     const token = generateToken(user._id);
+    const userPayload = await buildUserPayload(user);
     res.json({
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        organizationId: user.organizationId,
-        flatNumber: user.flatNumber,
-        trustScore: user.trustScore,
-        avatar: user.avatar,
-        totalUsageHours: user.totalUsageHours,
-        penaltyCount: user.penaltyCount
-      }
+      user: userPayload
     });
   } catch (error) {
     console.error('Google login error:', error.message);
@@ -204,6 +213,9 @@ exports.registerWithOrg = async (req, res) => {
     }
 
     if (!orgName) return res.status(400).json({ message: 'Organization name is required' });
+    if (!HAS_ALPHABET.test(orgName)) {
+      return res.status(400).json({ message: 'Organization name must include at least one alphabet character' });
+    }
 
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: 'User already exists' });
@@ -229,6 +241,7 @@ exports.registerWithOrg = async (req, res) => {
 
     // 3. Link creator back
     org.createdBy = user._id;
+    org.memberCount = 1;
     await org.save();
 
     // 4. Audit log
@@ -240,18 +253,10 @@ exports.registerWithOrg = async (req, res) => {
     });
 
     const token = generateToken(user._id);
+    const userPayload = await buildUserPayload(user);
     res.status(201).json({
       token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        organizationId: user.organizationId,
-        flatNumber: user.flatNumber,
-        trustScore: user.trustScore,
-        phone: user.phone
-      }
+      user: userPayload
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

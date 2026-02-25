@@ -12,6 +12,12 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const getHomeRoute = (user) => {
+    if (user.role === 'superadmin') return '/admin/organizations';
+    if (user.role === 'org_admin') return '/admin';
+    return user.organizationId ? '/dashboard' : '/verification';
+  };
+
   const onChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const onSubmit = async (e) => {
@@ -20,8 +26,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await login(form);
-      const isAdmin = data.user.role === 'org_admin' || data.user.role === 'superadmin';
-      navigate(isAdmin ? '/admin' : '/dashboard');
+      navigate(getHomeRoute(data.user));
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
@@ -34,8 +39,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await login({ email, password });
-      const isAdmin = data.user.role === 'org_admin' || data.user.role === 'superadmin';
-      navigate(isAdmin ? '/admin' : '/dashboard');
+      navigate(getHomeRoute(data.user));
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
@@ -48,8 +52,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await googleLogin(credential);
-      const isAdmin = data.user.role === 'org_admin' || data.user.role === 'superadmin';
-      navigate(isAdmin ? '/admin' : '/dashboard');
+      navigate(getHomeRoute(data.user));
     } catch (err) {
       setError(err.response?.data?.message || 'Google login failed');
     } finally {
