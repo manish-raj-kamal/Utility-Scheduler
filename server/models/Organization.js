@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const generateJoinKey = () => String(Math.floor(100000 + Math.random() * 900000));
-const generateOrganizationCode = () => String(Math.floor(100000 + Math.random() * 900000));
+const generateOrganizationCode = () => String(Math.floor(10000000 + Math.random() * 90000000));
 
 const organizationSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
@@ -18,7 +18,8 @@ const organizationSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true,
-    match: /^\d+$/
+    match: /^\d{8}$/,
+    default: generateOrganizationCode
   },
   joinKey: { type: String, default: generateJoinKey, minlength: 6, maxlength: 6 },
   isJoinable: { type: Boolean, default: true },

@@ -39,41 +39,57 @@ const seed = async () => {
     });
     console.log('Superadmin created: superadmin@utility.com / super123');
 
-    // 2. Create a demo organization
-    const org = await Organization.create({
-      name: 'Sunrise Apartments',
-      type: 'society',
-      address: '42 MG Road, Bangalore',
-      createdBy: superadmin._id
-    });
-    console.log(`Organization created: ${org.name} (${org._id})`);
+    // 2. Create 5 demo organizations
+    const orgConfigs = [
+      { name: 'Sunrise Apartments', type: 'society', address: '42 MG Road, Bangalore', adminEmail: 'admin@test.com', adminName: 'Admin User' },
+      { name: 'Green Valley Residency', type: 'society', address: '11 Residency Road, Bangalore', adminEmail: 'admin2@test.com', adminName: 'Admin Two' },
+      { name: 'Skyline Towers', type: 'society', address: '88 Airport Road, Bangalore', adminEmail: 'admin3@test.com', adminName: 'Admin Three' },
+      { name: 'TechPark Commons', type: 'company', address: '11 Whitefield Main Rd, Bangalore', adminEmail: 'admin4@test.com', adminName: 'Admin Four' },
+      { name: 'Lakeside Campus', type: 'college', address: '77 Ring Road, Bangalore', adminEmail: 'admin5@test.com', adminName: 'Admin Five' }
+    ];
 
-    // 3. Create org_admin + member test users (exactly 3 total test IDs including superadmin)
-    const admin = await User.create({
-      name: 'Admin User',
-      email: 'admin@test.com',
-      password: 'admin123',
-      role: 'org_admin',
-      flatNumber: 'OFFICE-1',
-      trustScore: 100,
-      organizationId: org._id
-    });
+    const organizations = [];
+    for (const cfg of orgConfigs) {
+      const org = await Organization.create({
+        name: cfg.name,
+        type: cfg.type,
+        address: cfg.address,
+        createdBy: superadmin._id
+      });
 
-    const member = await User.create({
+      const admin = await User.create({
+        name: cfg.adminName,
+        email: cfg.adminEmail,
+        password: 'admin123',
+        role: 'org_admin',
+        flatNumber: 'OFFICE-1',
+        trustScore: 100,
+        organizationId: org._id
+      });
+
+      org.createdBy = admin._id;
+      org.memberCount = 1;
+      await org.save();
+
+      organizations.push(org);
+      console.log(`Organization created: ${org.name} | orgId: ${org.organizationCode} | admin: ${cfg.adminEmail}`);
+    }
+
+    // 3. Create member test user in first organization
+    await User.create({
       name: 'Member User',
       email: 'member@test.com',
       password: 'member123',
       role: 'member',
       flatNumber: 'A-101',
       trustScore: 95,
-      organizationId: org._id
+      organizationId: organizations[0]._id
     });
 
-    org.createdBy = admin._id;
-    org.memberCount = 2;
-    await org.save();
+    organizations[0].memberCount = 2;
+    await organizations[0].save();
 
-    // 5. Create utilities scoped to org
+    // 4. Create utilities scoped to first org
     await Utility.create([
       {
         name: 'Parking Slot A',
@@ -83,7 +99,7 @@ const seed = async () => {
         maxHoursPerDay: 8,
         maxHoursPerWeek: 40,
         cooldownHours: 1,
-        organizationId: org._id
+        organizationId: organizations[0]._id
       },
       {
         name: 'Community Hall',
@@ -93,7 +109,7 @@ const seed = async () => {
         maxHoursPerDay: 6,
         maxHoursPerWeek: 12,
         cooldownHours: 24,
-        organizationId: org._id
+        organizationId: organizations[0]._id
       },
       {
         name: 'Backup Generator',
@@ -103,7 +119,7 @@ const seed = async () => {
         maxHoursPerDay: 4,
         maxHoursPerWeek: 16,
         cooldownHours: 2,
-        organizationId: org._id
+        organizationId: organizations[0]._id
       },
       {
         name: 'EV Charging Station',
@@ -113,7 +129,7 @@ const seed = async () => {
         maxHoursPerDay: 3,
         maxHoursPerWeek: 10,
         cooldownHours: 4,
-        organizationId: org._id
+        organizationId: organizations[0]._id
       },
       {
         name: 'Water Tanker (5000L)',
@@ -123,7 +139,7 @@ const seed = async () => {
         maxHoursPerDay: 1,
         maxHoursPerWeek: 3,
         cooldownHours: 48,
-        organizationId: org._id
+        organizationId: organizations[0]._id
       },
     ]);
     console.log('Utilities created');
@@ -132,10 +148,15 @@ const seed = async () => {
     console.log('\nLogin credentials:');
     console.log('  Superadmin : superadmin@utility.com / super123');
     console.log('  Org Admin  : admin@test.com / admin123');
+    console.log('  Org Admin  : admin2@test.com / admin123');
+    console.log('  Org Admin  : admin3@test.com / admin123');
+    console.log('  Org Admin  : admin4@test.com / admin123');
+    console.log('  Org Admin  : admin5@test.com / admin123');
     console.log('  Member     : member@test.com / member123');
-    console.log(`\nOrganization: ${org.name} (${org._id})`);
-    console.log(`Organization ID (search/join): ${org.organizationCode}`);
-    console.log(`Join Key (org_admin can regenerate): ${org.joinKey}`);
+    console.log('\nOrganizations (searchable orgId):');
+    organizations.forEach((o, i) => {
+      console.log(`  ${i + 1}. ${o.name} -> ${o.organizationCode}`);
+    });
 
     process.exit(0);
   } catch (error) {

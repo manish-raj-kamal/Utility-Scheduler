@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { deleteMyAccount, updateMyProfile, uploadMyAvatar } from '../services/api';
@@ -23,10 +23,17 @@ export default function ProfilePage() {
 
   const [name, setName] = useState(user?.name || '');
   const [orgName, setOrgName] = useState(user?.organizationName || '');
+  const [orgJoinKey, setOrgJoinKey] = useState(user?.organizationJoinKey || '');
+  const [showOrgJoinKey, setShowOrgJoinKey] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
 
   const role = roleLabels[user?.role] || roleLabels.member;
+
+// removed this debugging effect or make it less noisy
+  // useEffect(() => {
+  //   console.log('DEBUG: ProfilePage user state:', user);
+  // }, [user]);
 
   const initials = useMemo(() =>
     (user?.name || '')
@@ -37,18 +44,52 @@ export default function ProfilePage() {
       .slice(0, 2), [user?.name]
   );
 
+  useEffect(() => {
+    if (!user) return;
+
+    // Check if we are missing critical info (createdAt or Org Data if admin)
+    const missingJoinedDate = !user.createdAt;
+    const missingOrgMeta = user.role === 'org_admin' && (!user.organizationCode || !user.organizationJoinKey);
+
+    if (missingJoinedDate || missingOrgMeta) {
+      console.log('ProfilePage: Missing user details detected, refreshing...', { missingJoinedDate, missingOrgMeta });
+      refreshUser().catch((err) => console.error('Failed to refresh user profile:', err));
+    }
+  }, [user?.createdAt, user?.organizationCode, user?.organizationJoinKey, user?.role, refreshUser]);
+
+  useEffect(() => {
+    setOrgJoinKey(user?.organizationJoinKey || '');
+  }, [user?.organizationJoinKey]);
+
+  const joinedDate = useMemo(() => {
+    if (!user?.createdAt) return '—';
+    const parsed = new Date(user.createdAt);
+    if (Number.isNaN(parsed.getTime())) return '—';
+    return parsed.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  }, [user?.createdAt]);
+
+  const maskedJoinKey = useMemo(() => {
+    const key = String(user?.organizationJoinKey || orgJoinKey || '').trim();
+    if (!key) return '—';
+    return showOrgJoinKey ? key : '•'.repeat(6);
+  }, [showOrgJoinKey, user?.organizationJoinKey, orgJoinKey]);
+
   const flash = (text, type = 'success') => {
     setMsg({ text, type });
     setTimeout(() => setMsg({ text: '', type: '' }), 3000);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (overrideKey) => {
+    // If called from event, overrideKey is event object, so ignore it
+    const keyToSave = (typeof overrideKey === 'string') ? overrideKey : orgJoinKey;
+    
     setBusy(true);
     try {
       await updateMyProfile({
         name,
-        ...(user?.role === 'org_admin' ? { orgName } : {})
+        ...(user?.role === 'org_admin' ? { orgName, joinKey: keyToSave } : {})
       });
+      if (typeof overrideKey === 'string') setOrgJoinKey(overrideKey);
       await refreshUser();
       flash('Profile updated');
     } catch (err) {
@@ -126,7 +167,7 @@ export default function ProfilePage() {
             <W8Icon name="calendar" size={22} alt="joined" className="profile-chip-icon" />
             <div>
               <small>Joined</small>
-              <strong>{user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</strong>
+              <strong>{joinedDate}</strong>
             </div>
           </div>
           {user?.role === 'org_admin' && (
@@ -138,6 +179,27 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+          {user?.role === 'org_admin' && (
+            <div className="profile-chip">
+              <W8Icon name="verification" size={22} alt="key" className="profile-chip-icon" />
+              <div>
+                <small>Organization Join Key</small>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <strong>{maskedJoinKey}</strong>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    style={{ padding: '4px 8px', minHeight: 28 }}
+                    onClick={() => setShowOrgJoinKey((s) => !s)}
+                    aria-label={showOrgJoinKey ? 'Hide Organization Join Key' : 'Show Organization Join Key'}
+                    title={showOrgJoinKey ? 'Hide' : 'Show'}
+                  >
+                    {showOrgJoinKey ? '🙈' : '👁️'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -145,14 +207,47 @@ export default function ProfilePage() {
         <h3 style={{ marginBottom: 12 }}>Edit Profile</h3>
         <div className="auth-row">
           <label className="auth-label">
-            Admin name
+            Name
             <input value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           {user?.role === 'org_admin' && (
             <label className="auth-label">
-              Organization name
+              Organization Name
               <input value={orgName} onChange={(e) => setOrgName(e.target.value)} />
             </label>
+          )}
+          {user?.role === 'org_admin' && (
+              <div className="auth-label">
+                <label>Set New Organization Join Key (6 digits)</label>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Enter new 6-digit key"
+                    maxLength={6}
+                    value={orgJoinKey === user?.organizationJoinKey ? '' : orgJoinKey}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setOrgJoinKey(val || user?.organizationJoinKey); // If empty, revert to original so it's not sent as empty string (unless intended)
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  {orgJoinKey !== user?.organizationJoinKey && (
+                    <button 
+                      type="button" 
+                      className="btn ghost" 
+                      onClick={() => setOrgJoinKey(user?.organizationJoinKey || '')}
+                      title="Reset changes"
+                      style={{ padding: '4px 8px' }}
+                    >
+                      Undo
+                    </button>
+                  )}
+                </div>
+                <small className="muted" style={{ display: 'block', marginTop: 4 }}>
+                  Leave empty to keep current key.
+                </small>
+              </div>
           )}
         </div>
 

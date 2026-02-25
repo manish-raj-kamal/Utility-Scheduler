@@ -8,11 +8,15 @@ const HAS_ALPHABET = /[A-Za-z]/;
 const getUserPayload = async (userDoc) => {
   let organizationName = null;
   let organizationCode = null;
+  let organizationJoinKey = null;
 
   if (userDoc.organizationId) {
-    const org = await Organization.findById(userDoc.organizationId).select('name organizationCode');
+    const org = await Organization.findById(userDoc.organizationId).select('name organizationCode joinKey');
     organizationName = org?.name || null;
     organizationCode = org?.organizationCode || null;
+    if (userDoc.role === 'org_admin') {
+      organizationJoinKey = org?.joinKey || null;
+    }
   }
 
   return {
@@ -23,6 +27,7 @@ const getUserPayload = async (userDoc) => {
     organizationId: userDoc.organizationId,
     organizationName,
     organizationCode,
+    organizationJoinKey,
     phone: userDoc.phone,
     flatNumber: userDoc.flatNumber,
     trustScore: userDoc.trustScore,
@@ -35,7 +40,7 @@ const getUserPayload = async (userDoc) => {
 
 exports.updateMyProfile = async (req, res) => {
   try {
-    const { name, orgName } = req.body;
+    const { name, orgName, joinKey } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -46,20 +51,33 @@ exports.updateMyProfile = async (req, res) => {
       user.name = trimmedName;
     }
 
-    if (orgName !== undefined) {
+    if (orgName !== undefined || joinKey !== undefined) {
       if (user.role !== 'org_admin') {
-        return res.status(403).json({ message: 'Only org_admin can update organization name' });
+        return res.status(403).json({ message: 'Only org_admin can update organization details' });
       }
       if (!user.organizationId) {
         return res.status(400).json({ message: 'No organization assigned' });
       }
 
-      const normalizedOrgName = String(orgName).trim();
-      if (!normalizedOrgName || !HAS_ALPHABET.test(normalizedOrgName)) {
-        return res.status(400).json({ message: 'Organization name must include at least one alphabet character' });
+      const orgUpdates = {};
+
+      if (orgName !== undefined) {
+        const normalizedOrgName = String(orgName).trim();
+        if (!normalizedOrgName || !HAS_ALPHABET.test(normalizedOrgName)) {
+          return res.status(400).json({ message: 'Organization name must include at least one alphabet character' });
+        }
+        orgUpdates.name = normalizedOrgName;
       }
 
-      await Organization.findByIdAndUpdate(user.organizationId, { name: normalizedOrgName });
+      if (joinKey !== undefined) {
+        const normalizedJoinKey = String(joinKey).trim();
+        if (!/^\d{6}$/.test(normalizedJoinKey)) {
+          return res.status(400).json({ message: 'Organization join key must be exactly 6 digits' });
+        }
+        orgUpdates.joinKey = normalizedJoinKey;
+      }
+
+      await Organization.findByIdAndUpdate(user.organizationId, orgUpdates);
     }
 
     await user.save();

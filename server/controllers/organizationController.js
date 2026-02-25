@@ -5,9 +5,10 @@ const AuditLog = require('../models/AuditLog');
 
 const DIGITS_ONLY = /^\d+$/;
 const SIX_DIGITS = /^\d{6}$/;
+const EIGHT_DIGITS = /^\d{8}$/;
 const HAS_ALPHABET = /[A-Za-z]/;
 
-const generateOrganizationCode = () => String(Math.floor(100000 + Math.random() * 900000));
+const generateOrganizationCode = () => String(Math.floor(10000000 + Math.random() * 90000000));
 const PIN_ATTEMPT_LIMIT = 5;
 const PIN_ATTEMPT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -58,13 +59,16 @@ const incrementPinAttempt = async (userId, user, inWindow, attemptsUsed) => {
 
 exports.createOrganization = async (req, res) => {
   try {
-    const { name, type, address, contactEmail, contactPhone, organizationId } = req.body;
+    const { name, type, address, contactEmail, contactPhone, organizationId, joinKey } = req.body;
 
     if (!name || !HAS_ALPHABET.test(name)) {
       return res.status(400).json({ message: 'Organization name must include at least one alphabet character' });
     }
-    if (organizationId && !DIGITS_ONLY.test(String(organizationId))) {
-      return res.status(400).json({ message: 'organizationId must contain digits only' });
+    if (organizationId && !EIGHT_DIGITS.test(String(organizationId))) {
+      return res.status(400).json({ message: 'Organization ID must be exactly 8 digits' });
+    }
+    if (joinKey !== undefined && joinKey !== null && String(joinKey).trim() !== '' && !SIX_DIGITS.test(String(joinKey).trim())) {
+      return res.status(400).json({ message: 'Organization join key must be exactly 6 digits' });
     }
 
     const org = await createOrganizationWithUniqueCode({
@@ -73,6 +77,7 @@ exports.createOrganization = async (req, res) => {
       address: address || '',
       contactEmail: contactEmail || '',
       contactPhone: contactPhone || '',
+      joinKey: String(joinKey || '').trim() || undefined,
       createdBy: req.user._id
     }, organizationId ? String(organizationId) : null);
 
@@ -91,7 +96,7 @@ exports.createOrganization = async (req, res) => {
 
 exports.createSelfOrganization = async (req, res) => {
   try {
-    const { name, type, address, contactEmail, contactPhone, organizationId } = req.body;
+    const { name, type, address, contactEmail, contactPhone, organizationId, joinKey } = req.body;
 
     if (req.user.role === 'superadmin') {
       return res.status(403).json({ message: 'Superadmin cannot create membership organizations via this endpoint' });
@@ -105,8 +110,11 @@ exports.createSelfOrganization = async (req, res) => {
     if (!name || !HAS_ALPHABET.test(name)) {
       return res.status(400).json({ message: 'Organization name must include at least one alphabet character' });
     }
-    if (organizationId && !DIGITS_ONLY.test(String(organizationId))) {
-      return res.status(400).json({ message: 'organizationId must contain digits only' });
+    if (organizationId && !EIGHT_DIGITS.test(String(organizationId))) {
+      return res.status(400).json({ message: 'Organization ID must be exactly 8 digits' });
+    }
+    if (joinKey !== undefined && joinKey !== null && String(joinKey).trim() !== '' && !SIX_DIGITS.test(String(joinKey).trim())) {
+      return res.status(400).json({ message: 'Organization join key must be exactly 6 digits' });
     }
 
     const org = await createOrganizationWithUniqueCode({
@@ -115,6 +123,7 @@ exports.createSelfOrganization = async (req, res) => {
       address: address || '',
       contactEmail: contactEmail || req.user.email || '',
       contactPhone: contactPhone || '',
+      joinKey: String(joinKey || '').trim() || undefined,
       createdBy: req.user._id,
       memberCount: 1
     }, organizationId ? String(organizationId) : null);
@@ -180,13 +189,13 @@ exports.joinWithKey = async (req, res) => {
     const { orgId, joinKey } = req.body;
 
     if (!orgId || !joinKey) {
-      return res.status(400).json({ message: 'orgId and joinKey are required' });
+      return res.status(400).json({ message: 'Org ID and Join Key are required' });
     }
-    if (!DIGITS_ONLY.test(String(orgId))) {
-      return res.status(400).json({ message: 'orgId must contain digits only' });
+    if (!EIGHT_DIGITS.test(String(orgId))) {
+      return res.status(400).json({ message: 'Org ID must be exactly 8 digits' });
     }
     if (!SIX_DIGITS.test(String(joinKey))) {
-      return res.status(400).json({ message: 'joinKey must be exactly 6 digits' });
+      return res.status(400).json({ message: 'Join Key must be exactly 6 digits' });
     }
 
     if (req.user.role === 'superadmin') {
@@ -256,10 +265,10 @@ exports.requestToJoin = async (req, res) => {
     const { orgId } = req.body;
 
     if (!orgId) {
-      return res.status(400).json({ message: 'orgId is required' });
+      return res.status(400).json({ message: 'Org ID is required' });
     }
-    if (!DIGITS_ONLY.test(String(orgId))) {
-      return res.status(400).json({ message: 'orgId must contain digits only' });
+    if (!EIGHT_DIGITS.test(String(orgId))) {
+      return res.status(400).json({ message: 'Org ID must be exactly 8 digits' });
     }
 
     if (req.user.role === 'superadmin') {

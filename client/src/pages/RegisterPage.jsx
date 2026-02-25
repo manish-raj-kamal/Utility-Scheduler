@@ -5,6 +5,8 @@ import { sendRegistrationOtp } from '../services/api';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 import W8Icon from '../components/W8Icon';
 
+const SIX_DIGITS = /^\d{6}$/;
+
 /* ── tiny particle canvas drawn behind the right panel ── */
 function ParticleCanvas() {
   const ref = useRef(null);
@@ -151,7 +153,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1);           // 1=form  2=otp  3=success
   const [form, setForm] = useState({
     name: '', email: '', flatNumber: '', password: '',
-    phone: '', orgName: '', orgType: 'society', orgAddress: '', contactEmail: ''
+    phone: '', orgName: '', orgType: 'society', orgAddress: '', contactEmail: '', joinKey: ''
   });
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const otpRefs = useRef([]);
@@ -186,6 +188,11 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
+      if (isOrg && form.joinKey && !SIX_DIGITS.test(form.joinKey.trim())) {
+        setError('Organization Join Key must be exactly 6 digits');
+        triggerShake();
+        return;
+      }
       await sendRegistrationOtp(form.email);
       setCooldown(45);
       setStep(2);
@@ -400,6 +407,19 @@ export default function RegisterPage() {
                       Phone (optional)
                       <input name="phone" placeholder="+91 98765 43210" value={form.phone} onChange={onChange} />
                     </label>
+                    <label className="auth-label">
+                      Organization Join Key (optional, 6 digits)
+                      <input
+                        name="joinKey"
+                        placeholder="654321"
+                        value={form.joinKey}
+                        onChange={(e) => setForm((p) => ({ ...p, joinKey: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                        inputMode="numeric"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="auth-row">
                     <label className="auth-label">
                       Address (optional)
                       <input name="orgAddress" placeholder="123 Main St" value={form.orgAddress} onChange={onChange} />

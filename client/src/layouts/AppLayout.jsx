@@ -10,7 +10,8 @@ const navIconNames = {
   Notifications: 'notifications', Profile: 'profile',
   Users: 'users', Organizations: 'organizations',
   Analytics: 'analytics', 'Audit Logs': 'audit',
-  Verification: 'verification', Settings: 'settings',
+  'Join Organization': 'verification',
+  Organization: 'verification', Settings: 'settings',
 };
 
 const userMainLinks = [
@@ -18,6 +19,7 @@ const userMainLinks = [
   { path: '/utilities', label: 'Utilities' },
   { path: '/calendar', label: 'Calendar' },
   { path: '/my-bookings', label: 'Bookings' },
+  { path: '/verification', label: 'Organization' },
 ];
 
 const userBottomLinks = [
@@ -26,7 +28,7 @@ const userBottomLinks = [
 ];
 
 const noOrgLinks = [
-  { path: '/verification', label: 'Verification' },
+  { path: '/verification', label: 'Organization' },
 ];
 
 /* Org Admin: manage utilities, bookings, members, org analytics */
@@ -38,7 +40,7 @@ const orgAdminMainLinks = [
 ];
 
 const orgAdminExtraLinks = [
-  { path: '/verification', label: 'Verification' },
+  { path: '/verification', label: 'Organization' },
   { path: '/admin/analytics', label: 'Analytics' },
 ];
 
@@ -46,7 +48,7 @@ const orgAdminExtraLinks = [
 const superAdminMainLinks = [
   { path: '/admin', label: 'Admin Home' },
   { path: '/admin/organizations', label: 'Organizations' },
-  { path: '/verification', label: 'Verification' },
+  { path: '/verification', label: 'Organization' },
 ];
 
 const superAdminExtraLinks = [
@@ -134,7 +136,7 @@ export default function AppLayout() {
           <input
             value={sidebarSearch}
             onChange={(e) => setSidebarSearch(e.target.value)}
-            placeholder="Search org"
+            placeholder="Search Org"
             aria-label="Search organization"
           />
         </form>
@@ -179,9 +181,14 @@ export default function AppLayout() {
           </div>
           <div className="sb-user-info">
             <strong>{user?.name}</strong>
-            <span>{user?.role?.replace('_', ' ')}</span>
-            {user?.role === 'org_admin' && (user?.organizationName || user?.organizationCode) && (
-              <span>{user.organizationName || 'Organization'} {user.organizationCode ? `• ID ${user.organizationCode}` : ''}</span>
+            <span style={{ opacity: 0.8, fontSize: '0.8em' }}>{user?.role === 'org_admin' ? 'Organization Admin' : 'Member'}</span>
+
+            {/* Always show Org Name + ID if available */}
+            {(user?.organizationName || user?.organizationCode) && (
+              <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.75em', opacity: 0.9 }}>
+                {user.organizationName && <span style={{ fontWeight: 600 }}>{user.organizationName}</span>}
+                {user.organizationCode && <span>ID: {user.organizationCode}</span>}
+              </div>
             )}
           </div>
           <button className="sb-logout-btn" onClick={handleLogout} title="Logout">

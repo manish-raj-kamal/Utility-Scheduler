@@ -17,11 +17,15 @@ const generateToken = (id) => {
 const buildUserPayload = async (userDoc) => {
   let organizationName = null;
   let organizationCode = null;
+  let organizationJoinKey = null;
 
   if (userDoc.organizationId) {
-    const org = await Organization.findById(userDoc.organizationId).select('name organizationCode');
+    const org = await Organization.findById(userDoc.organizationId).select('name organizationCode joinKey');
     organizationName = org?.name || null;
     organizationCode = org?.organizationCode || null;
+    if (userDoc.role === 'org_admin') {
+      organizationJoinKey = org?.joinKey || null;
+    }
   }
 
   return {
@@ -32,6 +36,7 @@ const buildUserPayload = async (userDoc) => {
     organizationId: userDoc.organizationId,
     organizationName,
     organizationCode,
+    organizationJoinKey,
     flatNumber: userDoc.flatNumber,
     trustScore: userDoc.trustScore,
     totalUsageHours: userDoc.totalUsageHours,
@@ -202,7 +207,7 @@ exports.googleLogin = async (req, res) => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 exports.registerWithOrg = async (req, res) => {
   try {
-    const { name, email, password, phone, orgName, orgType, orgAddress, contactEmail, emailOtp } = req.body;
+    const { name, email, password, phone, orgName, orgType, orgAddress, contactEmail, joinKey, emailOtp } = req.body;
 
     // Verify email OTP
     if (!emailOtp) return res.status(400).json({ message: 'Email OTP is required' });
@@ -216,6 +221,9 @@ exports.registerWithOrg = async (req, res) => {
     if (!HAS_ALPHABET.test(orgName)) {
       return res.status(400).json({ message: 'Organization name must include at least one alphabet character' });
     }
+    if (joinKey !== undefined && joinKey !== null && String(joinKey).trim() !== '' && !/^\d{6}$/.test(String(joinKey).trim())) {
+      return res.status(400).json({ message: 'Organization join key must be exactly 6 digits' });
+    }
 
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: 'User already exists' });
@@ -225,7 +233,8 @@ exports.registerWithOrg = async (req, res) => {
       name: orgName,
       type: orgType || 'society',
       address: orgAddress || '',
-      contactEmail: contactEmail || email // default org contact to user's email
+      contactEmail: contactEmail || email, // default org contact to user's email
+      joinKey: String(joinKey || '').trim() || undefined
     });
 
     // 2. Create the user as org_admin
