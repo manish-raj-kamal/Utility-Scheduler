@@ -20,7 +20,7 @@ import OrgVerificationPage from './pages/OrgVerificationPage';
 import AdminOrganizations from './pages/AdminOrganizations';
 import NotFoundPage from './pages/NotFoundPage';
 
-const ProtectedRoute = ({ children, adminOnly = false }) => {
+const ProtectedRoute = ({ children, allowedRoles = null }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -32,8 +32,10 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   }
 
   if (!user) return <Navigate to="/login" />;
-  if (adminOnly && !['org_admin', 'superadmin'].includes(user.role)) {
-    return <Navigate to="/dashboard" />;
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    const isAdminRole = ['org_admin', 'superadmin'].includes(user.role);
+    return <Navigate to={isAdminRole ? '/admin' : '/dashboard'} />;
   }
 
   return children;
@@ -55,24 +57,38 @@ export default function App() {
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
 
+      {/* Universal: all logged-in users */}
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+      </Route>
+
+      {/* Member + Org Admin: view/book utilities (no superadmin) */}
+      <Route element={<ProtectedRoute allowedRoles={['member', 'org_admin']}><AppLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<UserDashboard />} />
         <Route path="/utilities" element={<UtilitiesPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/my-bookings" element={<MyBookingsPage />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/verification" element={<OrgVerificationPage />} />
       </Route>
 
-      <Route element={<ProtectedRoute adminOnly><AppLayout /></ProtectedRoute>}>
+      {/* Org Admin + Superadmin: admin home + analytics */}
+      <Route element={<ProtectedRoute allowedRoles={['org_admin', 'superadmin']}><AppLayout /></ProtectedRoute>}>
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/analytics" element={<AnalyticsPage />} />
+      </Route>
+
+      {/* Org Admin only: manage utilities, bookings, members */}
+      <Route element={<ProtectedRoute allowedRoles={['org_admin']}><AppLayout /></ProtectedRoute>}>
         <Route path="/admin/utilities" element={<AdminUtilities />} />
         <Route path="/admin/bookings" element={<AdminBookings />} />
         <Route path="/admin/users" element={<AdminUsers />} />
-        <Route path="/admin/analytics" element={<AnalyticsPage />} />
-        <Route path="/admin/audit" element={<AuditLogsPage />} />
+      </Route>
+
+      {/* Superadmin only: organisations list, approve org, audit logs */}
+      <Route element={<ProtectedRoute allowedRoles={['superadmin']}><AppLayout /></ProtectedRoute>}>
         <Route path="/admin/organizations" element={<AdminOrganizations />} />
+        <Route path="/admin/audit" element={<AuditLogsPage />} />
+        <Route path="/verification" element={<OrgVerificationPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

@@ -25,18 +25,28 @@ const userBottomLinks = [
   { path: '/profile', label: 'Profile' },
 ];
 
-const adminMainLinks = [
+/* Org Admin: manage utilities, bookings, members, org analytics */
+const orgAdminMainLinks = [
   { path: '/admin', label: 'Admin Home' },
   { path: '/admin/utilities', label: 'Utilities' },
   { path: '/admin/bookings', label: 'All Bookings' },
   { path: '/admin/users', label: 'Users' },
-  { path: '/admin/organizations', label: 'Organizations' },
 ];
 
-const adminExtraLinks = [
+const orgAdminExtraLinks = [
+  { path: '/admin/analytics', label: 'Analytics' },
+];
+
+/* Superadmin: organisations, approve org, platform analytics, audit */
+const superAdminMainLinks = [
+  { path: '/admin', label: 'Admin Home' },
+  { path: '/admin/organizations', label: 'Organizations' },
+  { path: '/verification', label: 'Verification' },
+];
+
+const superAdminExtraLinks = [
   { path: '/admin/analytics', label: 'Analytics' },
   { path: '/admin/audit', label: 'Audit Logs' },
-  { path: '/verification', label: 'Verification' },
 ];
 
 const adminBottomLinks = [
@@ -63,8 +73,11 @@ export default function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isAdmin = user?.role === 'org_admin' || user?.role === 'superadmin';
-  const mainLinks = isAdmin ? adminMainLinks : userMainLinks;
+  const isSuperadmin = user?.role === 'superadmin';
+  const isOrgAdmin = user?.role === 'org_admin';
+  const isAdmin = isOrgAdmin || isSuperadmin;
+  const mainLinks = isSuperadmin ? superAdminMainLinks : isOrgAdmin ? orgAdminMainLinks : userMainLinks;
+  const extraLinks = isSuperadmin ? superAdminExtraLinks : orgAdminExtraLinks;
   const bottomLinks = isAdmin ? adminBottomLinks : userBottomLinks;
 
   const close = () => setMenuOpen(false);
@@ -114,7 +127,7 @@ export default function AppLayout() {
                 <span className="sb-chevron">{moreOpen ? '▾' : '▸'}</span>
               </button>
               <div className={`sb-collapse-body ${moreOpen ? 'expanded' : ''}`}>
-                {adminExtraLinks.map((l) => (
+                {extraLinks.map((l) => (
                   <SidebarLink key={l.path} link={l} onClick={close} />
                 ))}
               </div>
