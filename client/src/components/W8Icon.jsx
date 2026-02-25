@@ -25,7 +25,7 @@ const ICONS = {
   admin:         't2VDiIioQ57t',   // 3D fluent crown (admin home)
   settings:      'Rg9GBTEpoDts',
   check:         'mswvLW2p0NED',
-  clock:         'nAOkRMJk7cKG',   // 3D fluent orange hourglass (hours used)
+  clock:         'D2pEwbAN3psf',   // clock-8 (hours used)
   coins:         'i8JDqvoJdGGY',   // 3D fluent dollar money bag (amount spent)
   shield:        'j9U3SvBtTjaM',   // security pass
   flat:          'QpU1t4EQD0xS',   // folder (repurposed as home unit)
