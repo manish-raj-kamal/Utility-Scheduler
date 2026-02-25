@@ -985,6 +985,39 @@ textarea {
   justify-content: center;
 }
 
+/* Custom Google sign-in button (replaces GSI renderButton iframe) */
+.google-custom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 18px;
+  border: 1.5px solid #dadce0;
+  border-radius: 12px;
+  background: #fff;
+  color: #3c4043;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s, border-color 0.18s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  letter-spacing: 0.01em;
+}
+.google-custom-btn:hover:not(:disabled) {
+  background: #f8f9fc;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  border-color: #c6c8cc;
+}
+.google-custom-btn:active:not(:disabled) {
+  background: #f1f3f8;
+  box-shadow: none;
+}
+.google-custom-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 /* ── Registration multi-step ── */
 
 .reg-page {
