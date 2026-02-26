@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const Organization = require('../models/Organization');
-const AuditLog = require('../models/AuditLog');
 const { sendEmail } = require('../utils/mailer');
+const { logAudit } = require('../utils/auditLogger');
 
 // ── Generate 6-digit OTP ──
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
@@ -71,10 +71,11 @@ exports.verifyEmailOtp = async (req, res) => {
     org.emailOtpExpiry = null;
     await org.save(); // pre-save hook recalculates verificationLevel
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'ORG_EMAIL_VERIFIED',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { email: org.contactEmail }
     });
 
@@ -110,10 +111,11 @@ exports.uploadDocuments = async (req, res) => {
     org.documentsUploaded = true;
     await org.save();
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'ORG_DOCUMENTS_UPLOADED',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { count: docs.length, names: docs.map((d) => d.name) }
     });
 
@@ -134,10 +136,11 @@ exports.approveOrganization = async (req, res) => {
     org.manualApproved = true;
     await org.save();
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'ORG_MANUALLY_APPROVED',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { approvedBy: req.user.name }
     });
 

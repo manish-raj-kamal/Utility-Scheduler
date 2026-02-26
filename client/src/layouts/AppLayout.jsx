@@ -1,8 +1,9 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import W8Icon from '../components/W8Icon';
 import Logo from '../components/Logo';
+import { getNotifications } from '../services/api';
 
 /* ── Icon name map (maps nav label → W8Icon name key) ── */
 const navIconNames = {
@@ -61,7 +62,7 @@ const adminBottomLinks = [
   { path: '/profile', label: 'Profile' },
 ];
 
-function SidebarLink({ link, onClick }) {
+function SidebarLink({ link, onClick, showUnreadDot = false }) {
   return (
     <NavLink
       to={link.path}
@@ -69,7 +70,8 @@ function SidebarLink({ link, onClick }) {
       onClick={onClick}
     >
       <W8Icon name={navIconNames[link.label] || 'home'} size={22} alt={link.label} className="sb-link-icon" />
-      {link.label}
+      <span className="sb-link-label">{link.label}</span>
+      {showUnreadDot && <span className="sb-notify-dot" aria-label="Unread notifications" />}
     </NavLink>
   );
 }
@@ -77,9 +79,11 @@ function SidebarLink({ link, onClick }) {
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
 
   const isSuperadmin = user?.role === 'superadmin';
   const isOrgAdmin = user?.role === 'org_admin';
@@ -120,6 +124,32 @@ export default function AppLayout() {
     .join('')
     .toUpperCase()
     .slice(0, 2);
+
+  const refreshNotificationDot = useCallback(() => {
+    if (!user) {
+      setHasUnreadNotifications(false);
+      return;
+    }
+
+    getNotifications()
+      .then((r) => setHasUnreadNotifications(r.data.some((item) => !item.isRead)))
+      .catch(() => {});
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const onNotificationsUpdated = () => refreshNotificationDot();
+    window.addEventListener('notifications:updated', onNotificationsUpdated);
+    const bootstrapTimer = setTimeout(() => refreshNotificationDot(), 0);
+    const intervalId = setInterval(refreshNotificationDot, 30000);
+
+    return () => {
+      clearTimeout(bootstrapTimer);
+      window.removeEventListener('notifications:updated', onNotificationsUpdated);
+      clearInterval(intervalId);
+    };
+  }, [user, refreshNotificationDot, location.pathname]);
 
   return (
     <div className="app-shell">
@@ -170,7 +200,12 @@ export default function AppLayout() {
         {/* Bottom links */}
         <nav className="sb-nav sb-nav-bottom">
           {bottomLinks.map((l) => (
-            <SidebarLink key={l.path} link={l} onClick={close} />
+            <SidebarLink
+              key={l.path}
+              link={l}
+              onClick={close}
+              showUnreadDot={l.path === '/notifications' && hasUnreadNotifications}
+            />
           ))}
         </nav>
 

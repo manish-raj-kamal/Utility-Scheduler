@@ -2,9 +2,9 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
-const AuditLog = require('../models/AuditLog');
 const { sendEmail } = require('../utils/mailer');
 const { createOtp, verifyOtp } = require('../utils/otpStore');
+const { logAudit } = require('../utils/auditLogger');
 
 const HAS_ALPHABET = /[A-Za-z]/;
 
@@ -254,10 +254,12 @@ exports.registerWithOrg = async (req, res) => {
     await org.save();
 
     // 4. Audit log
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'REGISTER_WITH_ORG',
       performedBy: user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { orgName: org.name, userName: user.name }
     });
 

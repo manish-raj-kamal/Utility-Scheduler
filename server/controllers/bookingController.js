@@ -2,9 +2,9 @@ const Booking = require('../models/Booking');
 const Utility = require('../models/Utility');
 const UsageLog = require('../models/UsageLog');
 const User = require('../models/User');
-const AuditLog = require('../models/AuditLog');
 const Notification = require('../models/Notification');
 const Organization = require('../models/Organization');
+const { logAudit } = require('../utils/auditLogger');
 const {
   calculateFairnessScore,
   detectConflicts,
@@ -246,9 +246,11 @@ exports.adminOverride = async (req, res) => {
     booking.status = newStatus;
     await booking.save();
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'ADMIN_OVERRIDE_BOOKING',
-      performedBy: req.user._id,
+      organizationId: booking.organizationId || req.user.organizationId || null,
+      entityType: 'booking',
+      entityId: bookingId,
       details: { bookingId, oldStatus, newStatus }
     });
 

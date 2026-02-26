@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const Organization = require('../models/Organization');
-const AuditLog = require('../models/AuditLog');
 const { uploadBuffer, destroyImage } = require('../utils/cloudinary');
+const { logAudit } = require('../utils/auditLogger');
 
 const HAS_ALPHABET = /[A-Za-z]/;
 
@@ -127,10 +127,12 @@ exports.deleteMyAccount = async (req, res) => {
       await Organization.findByIdAndUpdate(user.organizationId, { $inc: { memberCount: -1 } });
     }
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'DELETE_OWN_ACCOUNT',
       performedBy: user._id,
       organizationId: user.organizationId || null,
+      entityType: 'user',
+      entityId: user._id,
       details: { email: user.email, role: user.role }
     });
 
@@ -174,11 +176,34 @@ exports.updateUser = async (req, res) => {
       }
     }
 
+    const before = {
+      role: target.role,
+      trustScore: target.trustScore,
+      penaltyCount: target.penaltyCount
+    };
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { role, trustScore, penaltyCount },
       { new: true }
     ).select('-password');
+
+    await logAudit(req, {
+      action: 'UPDATE_USER',
+      organizationId: user.organizationId || req.user.organizationId || null,
+      entityType: 'user',
+      entityId: user._id,
+      details: {
+        targetUserId: user._id,
+        before,
+        after: {
+          role: user.role,
+          trustScore: user.trustScore,
+          penaltyCount: user.penaltyCount
+        }
+      }
+    });
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -208,6 +233,18 @@ exports.deleteUser = async (req, res) => {
     if (target.organizationId) {
       await Organization.findByIdAndUpdate(target.organizationId, { $inc: { memberCount: -1 } });
     }
+
+    await logAudit(req, {
+      action: 'DELETE_USER',
+      organizationId: target.organizationId || req.user.organizationId || null,
+      entityType: 'user',
+      entityId: target._id,
+      details: {
+        targetUserId: target._id,
+        targetEmail: target.email,
+        targetRole: target.role
+      }
+    });
 
     res.json({ message: 'User deleted' });
   } catch (error) {

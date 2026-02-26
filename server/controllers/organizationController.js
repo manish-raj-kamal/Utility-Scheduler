@@ -1,7 +1,7 @@
 const Organization = require('../models/Organization');
 const User = require('../models/User');
 const JoinRequest = require('../models/JoinRequest');
-const AuditLog = require('../models/AuditLog');
+const { logAudit } = require('../utils/auditLogger');
 
 const DIGITS_ONLY = /^\d+$/;
 const SIX_DIGITS = /^\d{6}$/;
@@ -81,10 +81,11 @@ exports.createOrganization = async (req, res) => {
       createdBy: req.user._id
     }, organizationId ? String(organizationId) : null);
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'CREATE_ORGANIZATION',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { organizationId: org._id, name: org.name }
     });
 
@@ -134,10 +135,11 @@ exports.createSelfOrganization = async (req, res) => {
       { new: true }
     ).select('-password');
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'SELF_CREATE_ORGANIZATION',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { organizationCode: org.organizationCode, name: org.name }
     });
 
@@ -246,10 +248,11 @@ exports.joinWithKey = async (req, res) => {
       }
     );
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'JOIN_ORGANIZATION_WITH_KEY',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { organizationId: org._id, organizationName: org.name }
     });
 
@@ -302,10 +305,11 @@ exports.requestToJoin = async (req, res) => {
       status: 'pending'
     });
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'REQUEST_JOIN_ORGANIZATION',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { joinRequestId: joinRequest._id }
     });
 
@@ -388,10 +392,11 @@ exports.reviewJoinRequest = async (req, res) => {
     joinRequest.reviewedBy = req.user._id;
     await joinRequest.save();
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: status === 'approved' ? 'APPROVE_JOIN_REQUEST' : 'REJECT_JOIN_REQUEST',
-      performedBy: req.user._id,
       organizationId: joinRequest.organizationId,
+      entityType: 'join_request',
+      entityId: joinRequest._id,
       details: {
         joinRequestId: joinRequest._id,
         targetUserId: joinRequest.userId,
@@ -423,10 +428,12 @@ exports.regenerateJoinKey = async (req, res) => {
     const newKey = org.regenerateJoinKey();
     await org.save();
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'REGENERATE_ORG_JOIN_KEY',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
+      severity: 'critical',
       details: { organizationId: org._id }
     });
 
@@ -473,10 +480,11 @@ exports.updateOrganization = async (req, res) => {
     );
     if (!org) return res.status(404).json({ message: 'Organization not found' });
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'UPDATE_ORGANIZATION',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { updates: req.body }
     });
 
@@ -495,10 +503,11 @@ exports.deleteOrganization = async (req, res) => {
     );
     if (!org) return res.status(404).json({ message: 'Organization not found' });
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'DELETE_ORGANIZATION',
-      performedBy: req.user._id,
       organizationId: org._id,
+      entityType: 'organization',
+      entityId: org._id,
       details: { name: org.name }
     });
 

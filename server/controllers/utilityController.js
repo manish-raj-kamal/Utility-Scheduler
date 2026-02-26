@@ -1,5 +1,5 @@
 const Utility = require('../models/Utility');
-const AuditLog = require('../models/AuditLog');
+const { logAudit } = require('../utils/auditLogger');
 
 exports.getAll = async (req, res) => {
   try {
@@ -39,10 +39,11 @@ exports.create = async (req, res) => {
     if (!orgId) return res.status(400).json({ message: 'Organization ID is required' });
 
     const utility = await Utility.create({ ...req.body, organizationId: orgId });
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'CREATE_UTILITY',
-      performedBy: req.user._id,
       organizationId: orgId,
+      entityType: 'utility',
+      entityId: utility._id,
       details: { utilityId: utility._id, name: utility.name }
     });
     res.status(201).json(utility);
@@ -62,10 +63,11 @@ exports.update = async (req, res) => {
     Object.assign(utility, req.body);
     await utility.save();
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'UPDATE_UTILITY',
-      performedBy: req.user._id,
       organizationId: utility.organizationId,
+      entityType: 'utility',
+      entityId: utility._id,
       details: { utilityId: utility._id, updates: req.body }
     });
     res.json(utility);
@@ -85,10 +87,11 @@ exports.remove = async (req, res) => {
     utility.isActive = false;
     await utility.save();
 
-    await AuditLog.create({
+    await logAudit(req, {
       action: 'DELETE_UTILITY',
-      performedBy: req.user._id,
       organizationId: utility.organizationId,
+      entityType: 'utility',
+      entityId: utility._id,
       details: { utilityId: utility._id, name: utility.name }
     });
     res.json({ message: 'Utility deactivated' });

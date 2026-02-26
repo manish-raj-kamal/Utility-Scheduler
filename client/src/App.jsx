@@ -19,6 +19,7 @@ import AuditLogsPage from './pages/AuditLogsPage';
 import OrgVerificationPage from './pages/OrgVerificationPage';
 import AdminOrganizations from './pages/AdminOrganizations';
 import NotFoundPage from './pages/NotFoundPage';
+import AppLoadingScreen from './components/AppLoadingScreen';
 
 const getDefaultRouteForUser = (user) => {
   if (!user) return '/login';
@@ -30,13 +31,7 @@ const getDefaultRouteForUser = (user) => {
 const ProtectedRoute = ({ children, allowedRoles = null, requireOrganization = false }) => {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="auth-wrap">
-        <div className="auth-card"><h2>Loading...</h2></div>
-      </div>
-    );
-  }
+  if (loading) return <AppLoadingScreen message="Checking your account and loading your workspace..." />;
 
   if (!user) return <Navigate to="/login" />;
 
@@ -53,7 +48,7 @@ const ProtectedRoute = ({ children, allowedRoles = null, requireOrganization = f
 
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return null;
+  if (loading) return <AppLoadingScreen message="Booting FairSlot..." />;
   if (user) {
     return <Navigate to={getDefaultRouteForUser(user)} />;
   }

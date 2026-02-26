@@ -1,80 +1,165 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { adminOverrideBooking, getAllBookings } from '../services/api';
-import { useWindowWidth } from '../hooks/useWindowWidth';
+
+const formatRange = (startValue, endValue) => {
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  const sameDay = start.toDateString() === end.toDateString();
+
+  if (sameDay) {
+    return `${start.toLocaleDateString('en-IN', { dateStyle: 'medium' })} • ${start.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  return `${start.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} - ${end.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`;
+};
 
 export default function AdminBookings() {
   const [items, setItems] = useState([]);
-  const [filter, setFilter] = useState('all');
-  const isMobile = useWindowWidth() < 640;
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState('');
 
-  const fetchItems = () => getAllBookings().then((r) => setItems(r.data)).catch(() => {});
-  useEffect(() => { fetchItems(); }, []);
+  const fetchItems = () => {
+    setLoading(true);
+    getAllBookings()
+      .then((r) => setItems(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
 
-  const list = filter === 'all' ? items : items.filter((i) => i.status === filter);
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const overrideStatus = async (bookingId, newStatus) => {
+    setBusyId(bookingId);
+    try {
+      await adminOverrideBooking({ bookingId, newStatus });
+      fetchItems();
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return items.filter((item) => {
+      const statusMatch = statusFilter === 'all' || item.status === statusFilter;
+      const searchMatch =
+        !query ||
+        `${item.userId?.name || ''} ${item.utilityId?.name || ''} ${item.paymentStatus || ''}`.toLowerCase().includes(query);
+      return statusMatch && searchMatch;
+    });
+  }, [items, statusFilter, search]);
+
+  const stats = useMemo(
+    () => ({
+      total: items.length,
+      approved: items.filter((item) => item.status === 'approved').length,
+      waitlist: items.filter((item) => item.status === 'waitlist').length,
+      pendingPayment: items.filter((item) => item.paymentStatus === 'pending').length
+    }),
+    [items]
+  );
 
   return (
-    <div>
-      <div className="page-head split">
-        <div><h1>All Bookings</h1><p className="muted">Override and manage booking requests.</p></div>
-        <select className="search-input" value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="all">All</option>
-          <option value="approved">Approved</option>
-          <option value="waitlist">Waitlist</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="rejected">Rejected</option>
-        </select>
+    <div className="luxe-page admin-ops-page bookings-admin-page">
+      <div className="luxe-ambient" aria-hidden="true">
+        <span className="luxe-orb orb-one" />
+        <span className="luxe-orb orb-two" />
+        <span className="luxe-orb orb-three" />
+        <span className="luxe-grid" />
       </div>
 
-      {isMobile ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {list.length === 0 ? (
-            <p className="muted center">No bookings found.</p>
-          ) : list.map((b) => (
-            <div key={b._id} className="panel" style={{ padding: '14px 16px' }}>
-              <div style={{ marginBottom: 8 }}>
-                <strong style={{ color: '#1e293b' }}>{b.userId?.name}</strong>
-                <span style={{ color: '#94a3b8', margin: '0 6px' }}>→</span>
-                <span style={{ color: '#475569' }}>{b.utilityId?.name}</span>
-                <div style={{ fontSize: '0.83rem', color: '#64748b', marginTop: 4 }}>
-                  {new Date(b.startTime).toLocaleString('en-IN')}
+      <section className="luxe-hero glass-panel">
+        <div className="luxe-hero-copy">
+          <p className="luxe-eyebrow">Booking Oversight</p>
+          <h1>All Bookings</h1>
+          <p className="muted">Review booking outcomes, override status, and monitor fairness impact.</p>
+        </div>
+        <div className="luxe-hero-actions admin-ops-filters">
+          <input
+            className="search-input luxe-search"
+            placeholder="Search user or utility"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select className="search-input luxe-search" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">All statuses</option>
+            <option value="approved">Approved</option>
+            <option value="waitlist">Waitlist</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+      </section>
+
+      <section className="luxe-stat-row admin-ops-stat-row">
+        <article className="luxe-stat-tile">
+          <span>Total Bookings</span>
+          <strong>{stats.total}</strong>
+        </article>
+        <article className="luxe-stat-tile">
+          <span>Approved</span>
+          <strong>{stats.approved}</strong>
+        </article>
+        <article className="luxe-stat-tile">
+          <span>Waitlist</span>
+          <strong>{stats.waitlist}</strong>
+        </article>
+        <article className="luxe-stat-tile">
+          <span>Pending Payments</span>
+          <strong>{stats.pendingPayment}</strong>
+        </article>
+      </section>
+
+      <section className="admin-ops-board glass-panel">
+        <div className="admin-ops-board-head">
+          <h3>Booking Queue ({filtered.length})</h3>
+        </div>
+
+        {loading ? (
+          <p className="muted center">Loading bookings...</p>
+        ) : filtered.length === 0 ? (
+          <p className="muted center">No bookings match the selected filter.</p>
+        ) : (
+          <div className="admin-entity-grid">
+            {filtered.map((booking) => (
+              <article className="admin-entity-card" key={booking._id}>
+                <div className="admin-entity-head">
+                  <strong>{booking.userId?.name || 'User'} → {booking.utilityId?.name || 'Utility'}</strong>
+                  <span className={`pill ${booking.status}`}>{booking.status}</span>
                 </div>
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-                <span className={`pill ${b.status}`}>{b.status}</span>
-                <span className={`pill ${b.paymentStatus}`}>{b.paymentStatus}</span>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8', marginLeft: 'auto' }}>Score: {b.fairnessScore}</span>
-              </div>
-              <div className="actions-inline" style={{ paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
-                <button className="btn primary" onClick={async () => { await adminOverrideBooking({ bookingId: b._id, newStatus: 'approved' }); fetchItems(); }}>Approve</button>
-                <button className="btn danger" onClick={async () => { await adminOverrideBooking({ bookingId: b._id, newStatus: 'rejected' }); fetchItems(); }}>Reject</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="panel table-scroll">
-          <table className="table">
-            <thead><tr><th>User</th><th>Utility</th><th>Time</th><th>Status</th><th>Payment</th><th>Score</th><th>Actions</th></tr></thead>
-            <tbody>
-              {list.map((b) => (
-                <tr key={b._id}>
-                  <td>{b.userId?.name}</td>
-                  <td>{b.utilityId?.name}</td>
-                  <td>{new Date(b.startTime).toLocaleString('en-IN')}</td>
-                  <td><span className={`pill ${b.status}`}>{b.status}</span></td>
-                  <td><span className={`pill ${b.paymentStatus}`}>{b.paymentStatus}</span></td>
-                  <td>{b.fairnessScore}</td>
-                  <td className="actions-inline">
-                    <button className="btn primary" onClick={async () => { await adminOverrideBooking({ bookingId: b._id, newStatus: 'approved' }); fetchItems(); }}>Approve</button>
-                    <button className="btn danger" onClick={async () => { await adminOverrideBooking({ bookingId: b._id, newStatus: 'rejected' }); fetchItems(); }}>Reject</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+
+                <p className="admin-entity-sub">{formatRange(booking.startTime, booking.endTime)}</p>
+
+                <div className="admin-entity-meta compact">
+                  <span>Payment: <span className={`pill ${booking.paymentStatus}`}>{booking.paymentStatus}</span></span>
+                  <span>Fairness Score: <strong>{booking.fairnessScore}</strong></span>
+                </div>
+
+                <div className="admin-entity-actions">
+                  <button
+                    className="btn primary"
+                    onClick={() => overrideStatus(booking._id, 'approved')}
+                    disabled={busyId === booking._id}
+                  >
+                    {busyId === booking._id ? 'Updating...' : 'Approve'}
+                  </button>
+                  <button
+                    className="btn danger"
+                    onClick={() => overrideStatus(booking._id, 'rejected')}
+                    disabled={busyId === booking._id}
+                  >
+                    {busyId === booking._id ? 'Updating...' : 'Reject'}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
-

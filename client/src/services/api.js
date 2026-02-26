@@ -72,7 +72,7 @@ export const getNotifications = () => API.get('/notifications');
 export const markNotificationRead = (id) => API.put(`/notifications/${id}/read`);
 export const markAllNotificationsRead = () => API.put('/notifications/read-all');
 
-export const getAuditLogs = () => API.get('/audit');
+export const getAuditLogs = (params = {}) => API.get('/audit', { params });
 
 // Organizations
 export const getOrganizations = () => API.get('/organizations');
