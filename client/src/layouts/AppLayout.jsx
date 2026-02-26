@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import W8Icon from '../components/W8Icon';
+import Logo from '../components/Logo';
 
 /* ── Icon name map (maps nav label → W8Icon name key) ── */
 const navIconNames = {
@@ -48,7 +49,6 @@ const orgAdminExtraLinks = [
 const superAdminMainLinks = [
   { path: '/admin', label: 'Admin Home' },
   { path: '/admin/organizations', label: 'Organizations' },
-  { path: '/verification', label: 'Organization' },
 ];
 
 const superAdminExtraLinks = [
@@ -126,8 +126,8 @@ export default function AppLayout() {
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         {/* Brand */}
         <div className="sb-brand">
-          <W8Icon name="utilities" size={26} alt="lightning" className="sb-brand-icon" />
-          <span className="sb-brand-text">UtilityScheduler</span>
+          <Logo size={28} />
+          <span className="sb-brand-text" style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600 }}>FairSlot</span>
         </div>
 
         {/* Search (visual placeholder) */}

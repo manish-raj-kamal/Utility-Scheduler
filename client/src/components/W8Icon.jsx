@@ -22,7 +22,7 @@ const ICONS = {
   verification:  'dwhGzD9VAiZ3',   // padlock / verification
   folder:        'FYI6LfcQUyOR',   // opened folder
   search:        'OxDyKkYjQ5Yk',   // binoculars
-  admin:         't2VDiIioQ57t',   // 3D fluent crown (admin home)
+  admin:         'idja0q6oFAQN',   // Home (admin home)
   settings:      'Rg9GBTEpoDts',
   check:         'mswvLW2p0NED',
   clock:         'D2pEwbAN3psf',   // clock-8 (hours used)

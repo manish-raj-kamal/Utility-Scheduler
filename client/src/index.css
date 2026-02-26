@@ -226,11 +226,12 @@ h1, h2, h3, p {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 10;
   background: #ffffffd8;
   backdrop-filter: blur(6px);
   border-bottom: 1px solid #d9def0;
   padding: 14px 24px;
+  border-radius: 0 0 14px 14px;
 }
 
 .page-content {

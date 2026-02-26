@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getOrganizations, approveOrganization } from '../services/api';
+import { useWindowWidth } from '../hooks/useWindowWidth';
 
 export default function AdminOrganizations() {
   const [orgs, setOrgs] = useState([]);
@@ -26,6 +27,7 @@ export default function AdminOrganizations() {
 
   const levelLabel = (l) => ['Unverified', 'Email Verified', 'Docs Uploaded', 'Approved'][l] || `Level ${l}`;
   const levelPill = (l) => ['', 'pill approved', 'pill waitlist', 'pill approved'][l] || 'pill';
+  const isMobile = useWindowWidth() < 640;
 
   return (
     <div>
@@ -38,6 +40,35 @@ export default function AdminOrganizations() {
         <p className="muted center">Loading…</p>
       ) : orgs.length === 0 ? (
         <p className="muted center">No organizations yet.</p>
+      ) : isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {orgs.map((org) => (
+            <div key={org._id} className="panel" style={{ padding: '14px 16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                <strong style={{ fontSize: '1rem', color: '#1e293b' }}>{org.name}</strong>
+                <span className={levelPill(org.verificationLevel)}>{levelLabel(org.verificationLevel)}</span>
+              </div>
+              <div style={{ fontSize: '0.83rem', color: '#64748b', textTransform: 'capitalize', marginBottom: 4 }}>{org.type}</div>
+              {org.contactEmail && <div style={{ fontSize: '0.83rem', color: '#475569' }}>{org.contactEmail}</div>}
+              {org.contactPhone && <div style={{ fontSize: '0.83rem', color: '#475569' }}>{org.contactPhone}</div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Level {org.verificationLevel}</span>
+                {org.verificationLevel < 3 ? (
+                  <button
+                    className="btn primary"
+                    onClick={() => handleApprove(org._id)}
+                    disabled={actionId === org._id}
+                    style={{ padding: '6px 16px', fontSize: '0.85rem' }}
+                  >
+                    {actionId === org._id ? 'Approving…' : 'Approve'}
+                  </button>
+                ) : (
+                  <span className="pill approved">✓ Approved</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="table-scroll">
           <table className="table">

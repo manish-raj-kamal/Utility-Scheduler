@@ -34,7 +34,7 @@ const getTransporter = async () => {
 const sendEmail = async ({ to, subject, text, html }) => {
   const mailer = await getTransporter();
   return mailer.sendMail({
-    from: process.env.SMTP_FROM || '"UtilityScheduler" <noreply@utilitysched.dev>',
+    from: process.env.SMTP_FROM || '"FairSlot" <noreply@fairslot.app>',
     to,
     subject,
     text,

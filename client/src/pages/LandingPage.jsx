@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Logo from '../components/Logo';
 
 const features = [
   {
@@ -46,7 +47,7 @@ export default function LandingPage() {
     <div className="landing-page">
       {/* Navbar */}
       <nav className="landing-nav">
-        <span className="landing-brand">⚡ UtilityScheduler</span>
+        <span className="landing-brand"><Logo size={26} showText /></span>
         <div className="landing-nav-links">
           {user ? (
             <Link to={dashboardPath} className="btn primary">Dashboard</Link>
@@ -125,7 +126,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="landing-cta">
         <h2>Ready to simplify utility management?</h2>
-        <p>Join your community on UtilityScheduler today — it's free.</p>
+        <p>Join your community on FairSlot today — it's free.</p>
         <div className="landing-actions">
           {user ? (
             <Link to={dashboardPath} className="btn primary lg">Go to Dashboard</Link>
@@ -137,7 +138,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="landing-footer">
-        <span>© {new Date().getFullYear()} UtilityScheduler</span>
+        <span>© {new Date().getFullYear()} FairSlot</span>
         <span className="muted">Built for modern communities</span>
       </footer>
     </div>

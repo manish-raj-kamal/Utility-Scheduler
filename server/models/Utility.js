@@ -5,7 +5,11 @@ const utilitySchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
   type: {
     type: String,
-    enum: ['parking', 'community_hall', 'generator', 'ev_charger', 'water_tanker', 'other'],
+    enum: [
+      'parking', 'community_hall', 'generator', 'ev_charger', 'water_tanker',
+      'badminton', 'tennis', 'swimming', 'gym', 'cricket', 'table_tennis', 'squash', 'basketball',
+      'other'
+    ],
     required: true
   },
   description: { type: String, default: '' },

@@ -63,7 +63,7 @@ exports.sendRegistrationOtp = async (req, res) => {
 
     await sendEmail({
       to: email,
-      subject: 'Your UtilityScheduler Registration OTP',
+      subject: 'Your FairSlot Registration OTP',
       text: `Your OTP is: ${otp}\nIt expires in 10 minutes.`,
       html: `
         <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:24px;">

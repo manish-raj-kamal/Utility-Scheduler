@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import FloatingIcons from '../components/FloatingIcons';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 import W8Icon from '../components/W8Icon';
+import Logo from '../components/Logo';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ export default function LoginPage() {
       {/* Left branding panel */}
       <div className="auth-side">
         <div className="auth-side-content">
-          <Link to="/" className="auth-brand"><W8Icon name="utilities" size={22} alt="" style={{marginRight:6}} />UtilityScheduler</Link>
+          <Link to="/" className="auth-brand"><Logo size={24} showText /></Link>
           <h1>Welcome back</h1>
           <p>Sign in to manage your bookings, view schedules, and access your community's shared utilities.</p>
           <div className="auth-side-features">
