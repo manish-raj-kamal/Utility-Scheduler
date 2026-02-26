@@ -299,7 +299,9 @@ export default function RegisterPage() {
       {/* Left branding panel */}
       <div className="auth-side">
         <div className="auth-side-content reg-side-content" key={step}>
-          <Link to="/" className="auth-brand"><Logo size={24} showText /></Link>
+          <Link to="/" className="auth-brand">
+            <Logo size={24} showText textColor="#e8f1ff" />
+          </Link>
           <h1 className="reg-side-title">{sideContent.title}</h1>
           <p className="reg-side-sub">{sideContent.sub}</p>
           <div className="auth-side-features reg-side-feats">

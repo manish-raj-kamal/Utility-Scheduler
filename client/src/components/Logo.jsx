@@ -4,7 +4,8 @@ import React from 'react';
  * FairSlot logo — dark rounded square with calendar grid,
  * one glowing blue cell, and a subtle ring.
  */
-export default function Logo({ size = 32, showText = false, className = '', style = {} }) {
+export default function Logo({ size = 32, showText = false, className = '', textColor = '#1e293b', style = {} }) {
+
   return (
     <span
       className={`fairslot-logo ${className}`}
@@ -37,6 +38,7 @@ export default function Logo({ size = 32, showText = false, className = '', styl
 
         {/* Dark rounded square background */}
         <rect width="100" height="100" rx="22" fill="url(#fs-bg)" />
+        <rect width="100" height="100" rx="22" fill="none" stroke="rgba(203, 213, 225, 0.45)" strokeWidth="1.8" />
 
         {/* Subtle circular ring */}
         {/* <circle cx="50" cy="50" r="36" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" fill="none" /> */}
@@ -64,7 +66,7 @@ export default function Logo({ size = 32, showText = false, className = '', styl
           fontWeight: 600,
           fontSize: size * 0.65,
           letterSpacing: '-0.02em',
-          color: '#1e293b',
+          color: textColor,
           lineHeight: 1,
           whiteSpace: 'nowrap',
         }}>

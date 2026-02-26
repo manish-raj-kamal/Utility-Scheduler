@@ -68,7 +68,9 @@ export default function LoginPage() {
       {/* Left branding panel */}
       <div className="auth-side">
         <div className="auth-side-content">
-          <Link to="/" className="auth-brand"><Logo size={24} showText /></Link>
+          <Link to="/" className="auth-brand">
+            <Logo size={24} showText textColor="#e8f1ff" />
+          </Link>
           <h1>Welcome back</h1>
           <p>Sign in to manage your bookings, view schedules, and access your community's shared utilities.</p>
           <div className="auth-side-features">
